@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>博弈实验室：丢手绢</title>
+    <style>
+        :root {
+            --primary: #8b5cf6; /* 紫色系 */
+            --secondary: #06b6d4; /* 青色系 */
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container { max-width: 800px; width: 95%; margin: 20px auto; }
+        
+        /* 顶部血条区 */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #334155;
+            margin-bottom: 20px;
+        }
+
+        .shield-badge {
+            background: #f59e0b; /* 金色 */
+            color: black;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 5px;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        .player-info { text-align: center; width: 40%; }
+        .role-badge { 
+            display: inline-block; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 0.8em; 
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .role-atk { background: var(--secondary); color: black; }
+        .role-def { background: var(--primary); color: white; }
+
+        .hp-bar-container {
+            height: 20px;
+            background: #0f172a;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+            position: relative;
+        }
+        .hp-bar { height: 100%; transition: width 0.5s ease; }
+        .hp-text { position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; top: 0; text-shadow: 1px 1px 2px black; }
+
+        /* 中间博弈区 */
+        .game-arena {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 时间轴 */
+        .timeline {
+            display: flex;
+            gap: 10px;
+            margin: 30px 0;
+        }
+        .time-slot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #334155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            color: #94a3b8;
+            transition: 0.3s;
+        }
+        .time-slot.active { background: var(--text); color: var(--bg); box-shadow: 0 0 10px white; transform: scale(1.2); }
+        .time-slot.past { background: #475569; }
+        /* 仅对攻方显示手绢位置 */
+        .time-slot.has-item::after { content: '🧣'; font-size: 1.2em; position: absolute; top: -25px; }
+
+        /* 触发结果显示区 */
+        .result-display {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .result-img {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 10px;
+            border: 2px solid var(--text);
+            display: none; /* 默认隐藏 */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .result-text {
+            margin-top: 15px;
+            font-size: 1.2em;
+            text-align: center;
+            min-height: 3em;
+        }
+
+        /* 操作按钮 */
+        .controls { display: flex; gap: 20px; margin-top: auto; }
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            color: white;
+            min-width: 150px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+        .btn-act { background: var(--secondary); box-shadow: 0 4px 0 #0891b2; }
+        .btn-act:active { transform: translateY(4px); box-shadow: none; }
+        .btn-wait { background: #475569; box-shadow: 0 4px 0 #334155; }
+        .btn-wait:active { transform: translateY(4px); box-shadow: none; }
+        
+        .fade-in { animation: fadeIn 0.5s forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        /* 模态框 */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; display: none;
+        }
+        .modal-content {
+            background: var(--card-bg); padding: 40px; border-radius: 15px; text-align: center; border: 2px solid var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align:center; margin-bottom: 5px;">丢手绢博弈 (Drop the Handkerchief)</h2>
+    <div style="text-align:center; color:#94a3b8; font-size:0.9em; margin-bottom:20px;">
+        <a href="index.html" style="color:#94a3b8; text-decoration:none;">← 返回大厅</a>
+    </div>
+
+    <!-- 状态栏 -->
+<div class="status-bar">
+        <div class="player-info">
+            <span id="p-role-badge" class="role-badge role-atk">你 (攻方)</span>
+            <!-- 新增：玩家护盾 -->
+            <span id="p-shield" class="shield-badge" style="display:none;">🛡️ 免伤护盾</span>
+            
+            <div class="hp-bar-container">
+                <div id="p-hp-bar" class="hp-bar" style="width: 100%; background-color: var(--success);"></div>
+                <div id="p-hp-text" class="hp-text">40 / 40</div>
+            </div>
+        </div>
+        <div style="font-size: 2em; font-weight: bold;">VS</div>
+        <div class="player-info">
+            <span id="ai-role-badge" class="role-badge role-def">AI (守方)</span>
+            <!-- 新增：AI护盾 -->
+            <span id="ai-shield" class="shield-badge" style="display:none;">🛡️ 免伤护盾</span>
+
+            <div class="hp-bar-container">
+                <div id="ai-hp-bar" class="hp-bar" style="width: 100%; background-color: var(--success);"></div>
+                <div id="ai-hp-text" class="hp-text">40 / 40</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏主区域 -->
+    <div class="game-arena">
+        <div style="position: absolute; top: 10px; right: 15px; color: #64748b; font-size: 0.9em;">
+            回合: <span id="current-turn">1</span> / 10
+        </div>
+
+        <!-- 结果展示区 (图片 + 文字) -->
+        <div class="result-display">
+            <img id="result-img" class="result-img" src="" alt="结果图片">
+            <div id="result-msg" class="result-text">等待行动...</div>
+        </div>
+
+        <!-- 时间轴 -->
+        <div class="timeline" id="timeline">
+            <!-- JS生成 1-10 -->
+        </div>
+
+        <!-- 控制按钮 -->
+         <!-- 游戏操作按钮 -->
+        <div id="game-controls" class="controls">
+            <button id="btn-wait" class="btn btn-wait" onclick="playerAction(false)">等待 (Wait)</button>
+            <button id="btn-act" class="btn btn-act" onclick="playerAction(true)">行动</button>
+        </div>
+
+        <!-- 结算后的下一轮按钮 (默认隐藏) -->
+        <div id="next-round-controls" class="controls" style="display:none;">
+            <button class="btn btn-act" style="width:100%; background:var(--primary);" onclick="startNewRound()">
+                确认结果，进入下一轮 →
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 游戏结束弹窗 -->
+<div id="end-modal" class="modal">
+    <div class="modal-content">
+        <h2 id="end-title">游戏结束</h2>
+        <p id="end-desc"></p>
+        <button class="btn btn-act" onclick="location.reload()">重新开始</button>
+        <br><br>
+        <button class="btn btn-wait" onclick="location.href='index.html'">退出</button>
+    </div>
+</div>
+
+<script>
+    // 配置
+    const MAX_HP = 40;
+    const MAX_TURNS = 10;
+    // 图片扩展名，如果图片是jpg，请改为 .jpg
+    const IMG_EXT = '.png'; 
+
+    // 游戏状态
+const state = {
+        turn: 1,
+        pHP: 40,
+        aiHP: 40,
+        isPlayerAttacker: true,
+        droppedTurn: null,
+        gameOver: false,
+        defenderHasShield: false // 新增：守方是否有护盾
+    };
+
+    // DOM 元素
+    const ui = {
+        turn: document.getElementById('current-turn'),
+        timeline: document.getElementById('timeline'),
+        
+        // --- 修改开始：添加这两个新的引用 ---
+        gameControls: document.getElementById('game-controls'),
+        nextControls: document.getElementById('next-round-controls'),
+        // --- 修改结束 ---
+
+        btnAct: document.getElementById('btn-act'),
+        btnWait: document.getElementById('btn-wait'),
+        msg: document.getElementById('result-msg'),
+        img: document.getElementById('result-img'),
+        pBadge: document.getElementById('p-role-badge'),
+        aiBadge: document.getElementById('ai-role-badge'),
+        pHpBar: document.getElementById('p-hp-bar'),
+        aiHpBar: document.getElementById('ai-hp-bar'),
+        pHpText: document.getElementById('p-hp-text'),
+        aiHpText: document.getElementById('ai-hp-text')
+    };
+
+    // 初始化
+    function init() {
+        renderTimeline();
+        updateUI();
+        ui.img.style.display = 'none';
+        ui.pShield = document.getElementById('p-shield');
+        ui.aiShield = document.getElementById('ai-shield');
+
+        // 随机先手
+        state.isPlayerAttacker = Math.random() > 0.5;
+        startNewRound(true);
+    }
+
+    // 刷新护盾UI显示
+    function updateShieldUI() {
+        // 如果是攻方回合，自己不可能有守方护盾；如果是守方回合，看 defenderHasShield
+        if (state.isPlayerAttacker) {
+            // 玩家是攻方 -> AI 是守方
+            ui.pShield.style.display = 'none';
+            ui.aiShield.style.display = state.defenderHasShield ? 'inline-block' : 'none';
+        } else {
+            // 玩家是守方 -> AI 是攻方
+            ui.pShield.style.display = state.defenderHasShield ? 'inline-block' : 'none';
+            ui.aiShield.style.display = 'none';
+        }
+    }
+
+    // 开始新的一轮（攻守互换或重置回合）
+    function startNewRound(swapRoles = true) {
+        if (state.pHP <= 0 || state.aiHP <= 0) return endGame();
+
+        // 重置按钮区域
+        ui.gameControls.style.display = 'flex';
+        ui.nextControls.style.display = 'none';
+
+        state.turn = 1;
+        state.droppedTurn = null;
+        
+        if (swapRoles) {
+            state.isPlayerAttacker = !state.isPlayerAttacker;
+        }
+
+        // --- 新增规则：残血检测 ---
+        // 检查当前谁是守方，如果守方血量 < 20，获得一次免伤机会
+        let defenderHP = state.isPlayerAttacker ? state.aiHP : state.pHP;
+        state.defenderHasShield = defenderHP < 20;
+
+        // UI 更新
+        let roleText = state.isPlayerAttacker ? '攻方 (丢手绢)' : '守方 (查杀)';
+        let shieldMsg = state.defenderHasShield ? ' <br><span style="color:#f59e0b">🛡️ 守方血量低于20，获得一次查杀豁免机会（误判不扣血）！</span>' : '';
+        
+        ui.msg.innerHTML = `新的一轮开始！你现在是 ${roleText}。${shieldMsg}`;
+        ui.img.style.display = 'none';
+        
+        updateShieldUI(); // 刷新护盾图标
+        updateRoleUI();
+        renderTimeline();
+    }
+
+    // 玩家点击行动
+    function playerAction(isActing) {
+        if (state.gameOver) return;
+
+        // 1. 玩家决策
+        let pAction = isActing ? 'ACT' : 'WAIT';
+        
+        // 2. AI 决策
+        let aiAction = getAIDecision();
+
+        // 3. 处理逻辑
+        processTurn(pAction, aiAction);
+    }
+
+    // AI 逻辑 (简单混合策略)
+    function getAIDecision() {
+        const remainingTurns = MAX_TURNS - state.turn + 1;
+        
+        if (state.isPlayerAttacker) {
+            // AI 是守方
+            // 随着回合推移，查杀概率增加，防止被扣太多间隔分
+            // 但如果太早查杀，容易误判
+            let baseProb = 0.1 + (state.turn * 0.08); 
+            // 如果AI觉得还没丢，它可能不敢回头
+            return Math.random() < baseProb ? 'ACT' : 'WAIT';
+        } else {
+            // AI 是攻方
+            if (state.droppedTurn !== null) return 'WAIT'; // 已经丢了，只能等
+            // 越往后越得丢，否则没机会了
+            let dropProb = 1 / remainingTurns; 
+            // 增加一点随机性，稍微激进一点
+            return Math.random() < dropProb * 1.5 ? 'ACT' : 'WAIT';
+        }
+    }
+
+    // 核心回合处理逻辑
+    // 核心回合处理逻辑
+    function processTurn(pMove, aiMove) {
+        let atkMove, defMove;
+        let attackerIsPlayer = state.isPlayerAttacker;
+
+        if (attackerIsPlayer) {
+            atkMove = pMove;
+            defMove = aiMove;
+        } else {
+            atkMove = aiMove;
+            defMove = pMove;
+        }
+
+        let roundEnds = false;
+        let damageMsg = '';
+        let triggerType = ''; 
+
+        // 1. 攻方动作
+        if (state.droppedTurn === null && atkMove === 'ACT') {
+            state.droppedTurn = state.turn;
+            if (attackerIsPlayer) renderTimeline(); 
+        }
+
+        // 2. 守方动作
+        if (defMove === 'ACT') {
+            if (state.droppedTurn === null) {
+                // --- 情况二：误判 ---
+                
+                // 检查护盾逻辑
+                if (state.defenderHasShield) {
+                    // 消耗护盾，游戏继续，不扣血
+                    state.defenderHasShield = false; 
+                    updateShieldUI();
+                    
+                    // 显示提示，但不进入结算流程
+                    let defenderName = attackerIsPlayer ? "AI" : "你";
+                    ui.msg.innerHTML = `<span style="color:#f59e0b">🛡️【查杀免疫】${defenderName} 第一次查杀失误（误判），但被护盾抵消了！游戏继续。</span>`;
+                    
+                    // 关键：这里直接 return，不执行后续的扣血和 roundEnds=true
+                    // 但需要增加回合数
+                    state.turn++;
+                    updateRoleUI(); // 刷新按钮状态
+                    if (state.turn > MAX_TURNS) handleMaxTurns(); // 处理10回合耗尽
+                    else {
+                        ui.turn.textContent = state.turn;
+                        renderTimeline();
+                    }
+                    return; 
+                }
+
+                // 没有护盾，正常扣血
+                triggerType = 'mistake';
+                applyDamage(attackerIsPlayer ? 'AI' : 'Player', 10);
+                damageMsg = "【误判】守方回头太早，手绢还没丢！守方 HP -10";
+                roundEnds = true;
+
+            } else if (state.droppedTurn === state.turn) {
+                // --- 情况三：识破 (修改后的规则) ---
+                triggerType = 'caught';
+                
+                // 守方 +5 (即扣除 -5), 攻方 -10
+                // 注意：如果有护盾，此时并不消耗，因为这是“成功识破”，规则说第一次查杀“攻方已丢下则正常扣血”
+                // 所以护盾只抵消“误判”
+                
+                applyDamage(attackerIsPlayer ? 'AI' : 'Player', -5); // 负数代表加血
+                applyDamage(attackerIsPlayer ? 'Player' : 'AI', 10);
+                
+                // 绿色提示守方回血，红色提示攻方掉血
+                damageMsg = "【识破】抓个正着！<span style='color:var(--success)'>守方 HP +5</span>，<span style='color:var(--danger)'>攻方 HP -10</span>";
+                roundEnds = true;
+
+            } else {
+                // --- 情况一：间隔伤害 ---
+                let dmg = state.turn - state.droppedTurn;
+                triggerType = 'interval';
+                applyDamage(attackerIsPlayer ? 'AI' : 'Player', dmg);
+                damageMsg = `【间隔伤害】反应太慢！延迟了 ${dmg} 回合。守方 HP -${dmg}`;
+                roundEnds = true;
+            }
+        }
+
+        updateTimelineActive();
+
+        if (roundEnds) {
+            showTriggerResult(triggerType, damageMsg);
+            ui.gameControls.style.display = 'none';
+            ui.nextControls.style.display = 'block';
+        } else {
+            // 双方都没动作，或者只有攻方动作
+            state.turn++;
+            if (state.turn > MAX_TURNS) {
+                handleMaxTurns();
+            } else {
+                ui.turn.textContent = state.turn;
+                renderTimeline();
+                updateRoleUI();
+            }
+        }
+    }
+    
+
+    function applyDamage(target, amount) {
+        if (target === 'Player') {
+            state.pHP -= amount;
+            state.pHP = Math.min(state.pHP, MAX_HP); // 限制最大血量
+        } else {
+            state.aiHP -= amount;
+            state.aiHP = Math.min(state.aiHP, MAX_HP); // 限制最大血量
+        }
+        updateUI();
+    }
+
+    function showTriggerResult(type, msg) {
+        // 显示图片
+        let imgName = '';
+        if (type === 'interval') imgName = '间隔伤害';
+        if (type === 'mistake') imgName = '误判';
+        if (type === 'caught') imgName = '识破';
+
+        ui.img.src = imgName + IMG_EXT;
+        ui.img.style.display = 'block';
+        ui.img.classList.add('fade-in');
+        
+        ui.msg.innerHTML = msg;
+        ui.msg.style.color = type === 'mistake' ? '#ef4444' : (type === 'caught' ? '#f59e0b' : '#8b5cf6');
+    }
+
+    // 辅助函数：处理10回合结束
+    function handleMaxTurns() {
+        ui.msg.textContent = "10回合耗尽，双方无事发生。准备互换攻守。";
+        ui.gameControls.style.display = 'none';
+        ui.nextControls.style.display = 'block';
+    }
+
+    // UI 渲染辅助函数
+    function updateRoleUI() {
+        // 先重置按钮显示
+        ui.btnAct.style.display = 'inline-block';
+        ui.btnWait.style.display = 'inline-block';
+        ui.btnWait.disabled = false;
+
+        if (state.isPlayerAttacker) {
+            ui.pBadge.className = 'role-badge role-atk';
+            ui.aiBadge.className = 'role-badge role-def';
+            ui.pBadge.textContent = '你 (攻方)';
+            ui.aiBadge.textContent = 'AI (守方)';
+            
+            // --- 核心修改逻辑：如果已经丢了手绢 ---
+            if (state.droppedTurn !== null) {
+                ui.btnAct.style.display = 'none'; // 隐藏“丢下”按钮
+                ui.btnWait.textContent = "继续 (Continue)"; // “等待”变成“继续”
+                // 这里不需要改 onclick，因为 playerAction(false) 就是 WAIT 逻辑
+            } else {
+                ui.btnAct.textContent = "丢下 (Drop)";
+                ui.btnWait.textContent = "持有 (Hold)";
+            }
+            // -------------------------------------
+
+        } else {
+            ui.btnAct.textContent = "回头 (Look)";
+            ui.btnWait.textContent = "继续走 (Walk)";
+            ui.pBadge.className = 'role-badge role-def';
+            ui.aiBadge.className = 'role-badge role-atk';
+            ui.pBadge.textContent = '你 (守方)';
+            ui.aiBadge.textContent = 'AI (攻方)';
+        }
+    }
+
+    function updateUI() {
+        // 血量限制
+        state.pHP = Math.max(0, state.pHP);
+        state.aiHP = Math.max(0, state.aiHP);
+
+        ui.pHpText.textContent = `${state.pHP} / ${MAX_HP}`;
+        ui.aiHpText.textContent = `${state.aiHP} / ${MAX_HP}`;
+        
+        ui.pHpBar.style.width = (state.pHP / MAX_HP * 100) + '%';
+        ui.aiHpBar.style.width = (state.aiHP / MAX_HP * 100) + '%';
+        
+        // 血条颜色变化
+        ui.pHpBar.style.backgroundColor = state.pHP < 15 ? 'var(--danger)' : 'var(--success)';
+        ui.aiHpBar.style.backgroundColor = state.aiHP < 15 ? 'var(--danger)' : 'var(--success)';
+
+        if (state.pHP <= 0 || state.aiHP <= 0) endGame();
+    }
+
+    function renderTimeline() {
+        ui.timeline.innerHTML = '';
+        for (let i = 1; i <= MAX_TURNS; i++) {
+            let div = document.createElement('div');
+            div.className = 'time-slot';
+            div.textContent = i;
+            
+            // 如果是当前回合
+            if (i === state.turn) div.classList.add('active');
+            // 如果是过去回合
+            if (i < state.turn) div.classList.add('past');
+            
+            // 如果我是攻方，且我已经丢了，且 i >= 丢的回合，显示标记
+            if (state.isPlayerAttacker && state.droppedTurn !== null && i >= state.droppedTurn) {
+                div.classList.add('has-item');
+            }
+            // 如果我是守方，我看不到手绢（直到结算揭晓，这里暂时不透视）
+            
+            ui.timeline.appendChild(div);
+        }
+    }
+
+    function updateTimelineActive() {
+        // 简单重绘即可
+        renderTimeline();
+    }
+
+    function endGame() {
+        state.gameOver = true;
+        document.getElementById('end-modal').style.display = 'flex';
+        const title = document.getElementById('end-title');
+        const desc = document.getElementById('end-desc');
+
+        if (state.pHP <= 0 && state.aiHP <= 0) {
+             title.textContent = "同归于尽";
+             title.style.color = "gray";
+             desc.textContent = "激烈的心理博弈导致双方都耗尽了精力。";
+        } else if (state.pHP <= 0) {
+            title.textContent = "你输了";
+            title.style.color = "var(--danger)";
+            desc.textContent = "AI 在这场信息博弈中胜出。";
+        } else {
+            title.textContent = "你赢了！";
+            title.style.color = "var(--success)";
+            desc.textContent = "你成功通过欺诈和敏锐的直觉击败了对手。";
+        }
+    }
+
+    // 启动
+    init();
+
+</script>
+</body>
+</html>
