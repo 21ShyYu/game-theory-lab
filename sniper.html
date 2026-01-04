@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>狙击对决 - 进阶版</title>
+    <title>狙击对决 - 终极版</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; }
         
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 10; }
         
-        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 40px; border-radius: 12px; text-align: center; pointer-events: auto; border: 1px solid #444; z-index: 20; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 40px; border-radius: 12px; text-align: center; pointer-events: auto; border: 1px solid #444; z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         
         input { padding: 12px; font-size: 18px; margin: 15px 0; width: 220px; text-align: center; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
         button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #e53935; color: white; border: none; border-radius: 4px; margin: 5px; transition: 0.2s; }
         button:hover { background: #c62828; }
-        button:disabled { background: #555; cursor: not-allowed; }
+        button:disabled { background: #555; cursor: not-allowed; opacity: 0.6; }
         
         .hud-text { font-size: 20px; text-shadow: 1px 1px 2px black; font-weight: bold; }
         .top-bar { display: flex; justify-content: space-between; width: 100%; }
@@ -24,20 +24,21 @@
         
         /* 姿势控制栏 */
         #defender-controls { display: none; pointer-events: auto; text-align: center; margin-bottom: 20px; }
-        .pose-btn { background: #333; border: 2px solid #666; width: 70px; height: 70px; border-radius: 10px; margin: 0 8px; font-size: 14px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; }
-        .pose-btn.active { background: #2e7d32; border-color: #4caf50; transform: scale(1.1); }
+        .pose-container { display: flex; justify-content: center; gap: 10px; }
+        .pose-btn { background: #333; border: 2px solid #666; width: 70px; height: 80px; border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.1s; }
+        .pose-btn.active { background: #2e7d32; border-color: #4caf50; transform: scale(1.1); z-index: 2; }
+        .pose-btn:disabled { background: #222; border-color: #444; color: #666; cursor: not-allowed; }
         .pose-icon { font-size: 24px; margin-bottom: 5px; }
+        .key-hint { position: absolute; top: 2px; left: 5px; font-size: 10px; color: #aaa; }
+        
+        /* 冷却遮罩 */
+        .cooldown-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.5); height: 0%; transition: height 1s linear; }
 
-        /* 瞄准镜准星 (仅狙击手可见) */
-        #crosshair { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0; z-index: 5; }
-        #crosshair::before { content: ''; position: absolute; top: -20px; left: 0; width: 2px; height: 40px; background: rgba(255, 0, 0, 0.8); }
-        #crosshair::after { content: ''; position: absolute; top: 0; left: -20px; width: 40px; height: 2px; background: rgba(255, 0, 0, 0.8); }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
-    <div id="crosshair"></div>
 
     <div id="ui-layer">
         <div class="top-bar">
@@ -49,26 +50,38 @@
         <div id="status-msg"></div>
 
         <div id="defender-controls">
-            <div style="color: #ddd; margin-bottom: 10px; font-size: 14px;">←AD 移动 (慢速) | 点击切换姿势</div>
-            <button class="pose-btn active" onclick="setPose('stand')">
-                <span class="pose-icon">🧍</span>站立
-            </button>
-            <button class="pose-btn" onclick="setPose('crouch')">
-                <span class="pose-icon">🧘</span>蹲下
-            </button>
-            <button class="pose-btn" onclick="setPose('lean_l')">
-                <span class="pose-icon">↖️</span>左探
-            </button>
-            <button class="pose-btn" onclick="setPose('lean_r')">
-                <span class="pose-icon">↗️</span>右探
-            </button>
+            <div style="color: #ddd; margin-bottom: 10px; font-size: 14px; text-shadow: 1px 1px 0 #000;">
+                ← AD 移动 | 数字键 1-4 切换姿势
+            </div>
+            <div class="pose-container">
+                <button class="pose-btn active" id="btn-stand" onclick="trySetPose('stand')">
+                    <span class="key-hint">1</span>
+                    <span class="pose-icon">🧍</span>站立
+                    <div class="cooldown-overlay"></div>
+                </button>
+                <button class="pose-btn" id="btn-crouch" onclick="trySetPose('crouch')">
+                    <span class="key-hint">2</span>
+                    <span class="pose-icon">🧘</span>蹲下
+                    <div class="cooldown-overlay"></div>
+                </button>
+                <button class="pose-btn" id="btn-lie" onclick="trySetPose('lie')">
+                    <span class="key-hint">3</span>
+                    <span class="pose-icon">🛌</span>躺下
+                    <div class="cooldown-overlay"></div>
+                </button>
+                <button class="pose-btn" id="btn-fly" onclick="trySetPose('fly')">
+                    <span class="key-hint">4</span>
+                    <span class="pose-icon">🎈</span>飞天
+                    <div class="cooldown-overlay"></div>
+                </button>
+            </div>
         </div>
     </div>
 
     <div id="menu">
-        <h1 style="color:#e53935; margin:0 0 10px 0;">狙击对决 <span style="font-size:0.5em; color:#fff">v2.0</span></h1>
-        <p style="color:#aaa; font-size:14px;">一方潜伏，一方狙击。子弹打光或命中后互换身份。</p>
-        <input type="text" id="room-id" placeholder="输入房间号 (如: 666)" value="666">
+        <h1 style="color:#e53935; margin:0 0 10px 0;">狙击对决 <span style="font-size:0.5em; color:#fff">v3.0</span></h1>
+        <p style="color:#aaa; font-size:14px;">狙击 vs 伪装。命中即结束回合。</p>
+        <input type="text" id="room-id" placeholder="输入房间号 (如: 888)" value="888">
         <br>
         <button id="btn-create" onclick="initNetwork('host')">创建房间 (先手狙击)</button>
         <button id="btn-join" onclick="initNetwork('client')">加入房间 (后手躲避)</button>
@@ -78,47 +91,47 @@
 <script>
 // --- 全局配置 ---
 const CFG = {
-    moveSpeed: 0.15, // 降低移动速度 (原来是0.5)
-    zoomLevel: 2.0,  // 狙击手放大倍数
-    scopeRadius: 250, // 瞄准镜大小
-    bulletDmg: { head: 100, body: 30, limbs: 10 },
-    coverColor: '#5d4037',
-    coverHoleSize: 30 // 掩体破坏半径
+    moveSpeed: 0.15,
+    zoomLevel: 2.2, 
+    scopeRadius: 280,
+    bulletDmg: 100, // 只要命中就结束，所以伤害其实不重要了，只要大于0
+    coverHoleSize: 35,
+    cooldownTime: 1000 // ms
 };
 
 // --- 游戏状态 ---
 const STATE = {
-    // 网络身份 (不可变)
     netRole: null, // 'host' or 'client'
     conn: null,
     peer: null,
-
-    // 游戏逻辑身份 (每局互换)
-    currentSniper: 'host', // 'host' or 'client' 谁是当前的狙击手
+    currentSniper: 'host', 
     
-    // 游戏变量
     phase: 'menu', // menu, waiting, aiming, result
-    round: 1,
     bullets: 3,
     
     // 玩家数据
-    hp: 100, // 守方血量 (继承)
-    defenderPos: 50, // 0-100
+    defenderPos: 50,
     defenderPose: 'stand',
     
     // 狙击手数据
-    aimX: 0.5, // 0-1
+    aimX: 0.5,
     aimY: 0.5,
-    isScoped: false,
     
-    // 掩体数据 (离屏Canvas用于处理破坏效果)
-    coversCanvas: null,
-    coversCtx: null,
+    // 姿势冷却 { poseName: timestamp }
+    cooldowns: { stand: 0, crouch: 0, lie: 0, fly: 0 },
     
-    gameOver: false
+    // 掩体 (双通道)
+    covers: {
+        host: null,   // Host当守方时的掩体
+        client: null, // Client当守方时的掩体
+        ctxHost: null,
+        ctxClient: null
+    },
+    
+    gameOver: false // 回合锁
 };
 
-// --- 初始化 Canvas ---
+// --- Canvas 初始化 ---
 const CANVAS = document.getElementById('gameCanvas');
 const CTX = CANVAS.getContext('2d');
 let W, H;
@@ -128,37 +141,53 @@ function resize() {
     H = window.innerHeight;
     CANVAS.width = W;
     CANVAS.height = H;
-    initCovers(); // 重绘掩体
+    // 如果还没初始化掩体，初始化之
+    if(!STATE.covers.host) initCovers();
 }
 window.addEventListener('resize', resize);
 
-// 初始化掩体层 (用于破坏效果)
 function initCovers() {
-    if(!W) return;
-    STATE.coversCanvas = document.createElement('canvas');
-    STATE.coversCanvas.width = W;
-    STATE.coversCanvas.height = H;
-    STATE.coversCtx = STATE.coversCanvas.getContext('2d');
+    // 创建两个独立的离屏Canvas
+    ['host', 'client'].forEach(key => {
+        const c = document.createElement('canvas');
+        c.width = window.innerWidth; // 暂时用当前宽度，生产环境应处理resize保留内容
+        c.height = window.innerHeight;
+        const ctx = c.getContext('2d');
+        
+        // 绘制掩体 (两个人的掩体布局可以略有不同，或者一样但状态独立)
+        drawInitialCover(ctx, key === 'host');
+        
+        STATE.covers[key] = c;
+        STATE.covers['ctx' + key.charAt(0).toUpperCase() + key.slice(1)] = ctx;
+    });
+}
+
+function drawInitialCover(ctx, isHost) {
+    ctx.fillStyle = '#5d4037';
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
     
-    // 绘制初始掩体 (墙体)
-    const cCtx = STATE.coversCtx;
-    cCtx.fillStyle = CFG.coverColor;
+    // 布局
+    // 左掩体
+    ctx.fillRect(w * 0.15, h * 0.65, w * 0.18, h * 0.35);
+    // 右掩体
+    ctx.fillRect(w * 0.60, h * 0.60, w * 0.20, h * 0.40);
     
-    // 掩体1
-    cCtx.fillRect(W * 0.2, H * 0.6, W * 0.15, H * 0.4);
-    // 掩体2
-    cCtx.fillRect(W * 0.65, H * 0.65, W * 0.15, H * 0.35);
+    // 边框
+    ctx.strokeStyle = '#3e2723';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(w * 0.15, h * 0.65, w * 0.18, h * 0.35);
+    ctx.strokeRect(w * 0.60, h * 0.60, w * 0.20, h * 0.40);
     
-    // 增加一点纹理细节
-    cCtx.strokeStyle = '#3e2723';
-    cCtx.lineWidth = 4;
-    cCtx.strokeRect(W * 0.2, H * 0.6, W * 0.15, H * 0.4);
-    cCtx.strokeRect(W * 0.65, H * 0.65, W * 0.15, H * 0.35);
+    // 装饰
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.font = "30px Arial";
+    ctx.fillText(isHost ? "A区" : "B区", w * 0.2, h * 0.8);
 }
 
 resize();
 
-// --- 网络模块 (PeerJS) ---
+// --- 网络模块 ---
 function log(msg) { document.getElementById('conn-status').innerText = msg; }
 
 function initNetwork(role) {
@@ -166,35 +195,31 @@ function initNetwork(role) {
     if(!room) return alert("请输入房间号");
     
     STATE.netRole = role;
-    STATE.currentSniper = 'host'; // 默认Host先手
+    STATE.currentSniper = 'host';
     
     document.getElementById('btn-create').disabled = true;
     document.getElementById('btn-join').disabled = true;
-    log("正在连接云端服务器...");
+    log("连接服务器...");
 
-    const myId = role === 'host' ? `sniper_game_${room}_host` : `sniper_game_${room}_client`;
-    const targetId = role === 'host' ? `sniper_game_${room}_client` : `sniper_game_${room}_host`;
+    const myId = role === 'host' ? `sg_${room}_h` : `sg_${room}_c`;
+    const targetId = role === 'host' ? `sg_${room}_c` : `sg_${room}_h`;
     
-    // 清理旧连接
     if(STATE.peer) STATE.peer.destroy();
-
     STATE.peer = new Peer(myId);
 
     STATE.peer.on('open', (id) => {
         if(role === 'host') {
-            log("房间已创建，等待对手加入...");
-            STATE.peer.on('connection', (conn) => {
-                setupConnection(conn);
-            });
+            log("等待对手...");
+            STATE.peer.on('connection', (conn) => setupConnection(conn));
         } else {
-            log("正在寻找房间...");
+            log("寻找房间...");
             const conn = STATE.peer.connect(targetId);
             setupConnection(conn);
         }
     });
 
     STATE.peer.on('error', (err) => {
-        alert("连接失败，可能是房间号已被占用或网络问题。\n" + err.type);
+        alert("连接失败: " + err.type);
         location.reload();
     });
 }
@@ -202,15 +227,11 @@ function initNetwork(role) {
 function setupConnection(conn) {
     STATE.conn = conn;
     conn.on('open', () => {
-        log("连接成功！游戏即将开始...");
         document.getElementById('menu').style.display = 'none';
         startGame();
     });
     conn.on('data', (data) => handleData(data));
-    conn.on('close', () => {
-        alert("对手已断开连接");
-        location.reload();
-    });
+    conn.on('close', () => location.reload());
 }
 
 function send(data) {
@@ -220,43 +241,43 @@ function send(data) {
 // --- 游戏逻辑 ---
 
 function startGame() {
-    STATE.gameOver = false;
-    STATE.hp = 100; // 初始血量
     startRound();
 }
 
 function startRound() {
     STATE.phase = 'waiting';
     STATE.bullets = 3;
-    STATE.isScoped = false;
-    STATE.defenderPos = 50; // 重置位置
+    STATE.defenderPos = 50;
     STATE.defenderPose = 'stand';
     STATE.gameOver = false;
     
-    // 重置掩体 (可选：如果不希望掩体每局重置，就把这行注释掉)
-    // initCovers(); 
+    // 重置冷却
+    STATE.cooldowns = { stand: 0, crouch: 0, lie: 0, fly: 0 };
+    updatePoseButtons();
 
     updateUI();
     
-    // 5秒倒计时逻辑
+    // 5秒准备倒计时
     let count = 5;
-    showStatus(`准备! ${count}`);
+    const isSniper = isMyTurn();
     
+    const msg = isSniper ? `搜索目标... ${count}` : `快躲起来! ${count}`;
+    showStatus(msg);
+
     const timer = setInterval(() => {
         count--;
         if(count > 0) {
-            showStatus(`准备! ${count}`);
+            const m = isSniper ? `搜索目标... ${count}` : `快躲起来! ${count}`;
+            showStatus(m);
         } else {
             clearInterval(timer);
             STATE.phase = 'aiming';
-            if(isMyTurn()) {
-                STATE.isScoped = true;
-                showStatus("开火授权已确认！");
+            if(isSniper) {
+                showStatus("自由开火!");
             } else {
-                showStatus("躲避！注意红色激光！");
+                showStatus("注意隐蔽!");
             }
         }
-        updateUI();
     }, 1000);
 }
 
@@ -265,47 +286,55 @@ function isMyTurn() {
 }
 
 // 攻守交换
-function swapRoles() {
-    STATE.currentSniper = (STATE.currentSniper === 'host') ? 'client' : 'host';
-    showStatus("攻守互换！");
-    setTimeout(startRound, 2000);
+function swapRoles(reason) {
+    STATE.gameOver = true;
+    showStatus(reason);
+    
+    setTimeout(() => {
+        STATE.currentSniper = (STATE.currentSniper === 'host') ? 'client' : 'host';
+        startRound();
+    }, 3000);
 }
 
 // --- 输入处理 ---
 
-// 鼠标移动 (狙击手瞄准)
+// 鼠标移动
 window.addEventListener('mousemove', (e) => {
     if(STATE.phase !== 'aiming' || STATE.gameOver) return;
-    
     if(isMyTurn()) {
-        // 狙击手：鼠标直接控制准星
         STATE.aimX = e.clientX / W;
         STATE.aimY = e.clientY / H;
-        // 同步瞄准位置给对手 (用于激光指示)
         send({ type: 'AIM', x: STATE.aimX, y: STATE.aimY });
     }
 });
 
-// 鼠标点击 (开枪)
+// 开枪
 window.addEventListener('mousedown', (e) => {
     if(STATE.phase !== 'aiming' || STATE.gameOver) return;
-    
     if(isMyTurn() && STATE.bullets > 0) {
-        // 播放音效逻辑(略)
-        // 发送射击数据
-        const shotData = { type: 'SHOOT', x: STATE.aimX, y: STATE.aimY };
-        send(shotData);
+        send({ type: 'SHOOT', x: STATE.aimX, y: STATE.aimY });
         handleShoot(STATE.aimX, STATE.aimY);
     }
 });
 
-// 键盘移动 (躲避者)
+// 键盘移动与快捷键
 const keys = {};
-window.addEventListener('keydown', (e) => keys[e.code] = true);
+window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    
+    // 快捷键切换姿势
+    if(!isMyTurn() && !STATE.gameOver) {
+        if(e.key === '1') trySetPose('stand');
+        if(e.key === '2') trySetPose('crouch');
+        if(e.key === '3') trySetPose('lie');
+        if(e.key === '4') trySetPose('fly');
+    }
+});
 window.addEventListener('keyup', (e) => keys[e.code] = false);
 
 function updateDefender() {
-    if(STATE.phase !== 'aiming' || STATE.gameOver) return;
+    // 守方在前5秒也可以移动！
+    if(STATE.phase === 'menu' || STATE.gameOver) return;
     
     if(!isMyTurn()) {
         let move = 0;
@@ -315,327 +344,303 @@ function updateDefender() {
         if(move !== 0) {
             STATE.defenderPos += move * CFG.moveSpeed;
             STATE.defenderPos = Math.max(0, Math.min(100, STATE.defenderPos));
-            
-            // 发送位置
             send({ type: 'MOVE', pos: STATE.defenderPos, pose: STATE.defenderPose });
         }
     }
 }
 
-// 姿势切换
-window.setPose = function(pose) {
+// 姿势切换逻辑 (含冷却)
+window.trySetPose = function(newPose) {
     if(STATE.gameOver || isMyTurn()) return;
-    STATE.defenderPose = pose;
+    if(STATE.defenderPose === newPose) return; // 已经是这个姿势
     
-    // 更新UI按钮状态
-    document.querySelectorAll('.pose-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    const now = Date.now();
+    // 检查目标姿势是否在冷却
+    if(now < STATE.cooldowns[newPose]) return; 
     
-    send({ type: 'MOVE', pos: STATE.defenderPos, pose: pose });
+    // 切换成功
+    // 旧姿势进入冷却
+    STATE.cooldowns[STATE.defenderPose] = now + CFG.cooldownTime;
+    STATE.defenderPose = newPose;
+    
+    updatePoseButtons();
+    send({ type: 'MOVE', pos: STATE.defenderPos, pose: newPose });
 }
 
-// --- 核心网络处理 ---
+function updatePoseButtons() {
+    const now = Date.now();
+    ['stand', 'crouch', 'lie', 'fly'].forEach(pose => {
+        const btn = document.getElementById('btn-' + pose);
+        const cd = STATE.cooldowns[pose];
+        
+        // 激活状态
+        if(STATE.defenderPose === pose) {
+            btn.classList.add('active');
+            btn.disabled = false;
+        } else {
+            btn.classList.remove('active');
+            // 冷却状态
+            if(now < cd) {
+                btn.disabled = true;
+                // 简单的冷却视觉效果 (略)
+            } else {
+                btn.disabled = false;
+            }
+        }
+    });
+}
+
+// --- 数据处理 ---
 function handleData(data) {
     switch(data.type) {
-        case 'AIM':
-            // 守方收到狙击手的瞄准位置
-            if(!isMyTurn()) {
-                STATE.aimX = data.x;
-                STATE.aimY = data.y;
-            }
-            break;
-        case 'MOVE':
-            // 狙击手收到守方位置
-            if(isMyTurn()) {
-                STATE.defenderPos = data.pos;
-                STATE.defenderPose = data.pose;
-            }
-            break;
-        case 'SHOOT':
-            // 收到开枪指令
-            handleShoot(data.x, data.y);
-            break;
-        case 'SYNC_STATE':
-            // 简单的状态同步 (血量等)
-            STATE.hp = data.hp;
-            break;
+        case 'AIM': if(!isMyTurn()) { STATE.aimX = data.x; STATE.aimY = data.y; } break;
+        case 'MOVE': if(isMyTurn()) { STATE.defenderPos = data.pos; STATE.defenderPose = data.pose; } break;
+        case 'SHOOT': handleShoot(data.x, data.y); break;
     }
 }
 
-// --- 射击与判定 (关键逻辑) ---
+// --- 射击判定 ---
 function handleShoot(x, y) {
-    STATE.bullets--;
-    
-    // 1. 破坏掩体 (在离屏 Canvas 上擦除)
-    // 转换坐标
-    const cx = x * W;
-    const cy = y * H;
-    
-    STATE.coversCtx.globalCompositeOperation = 'destination-out';
-    STATE.coversCtx.beginPath();
-    STATE.coversCtx.arc(cx, cy, CFG.coverHoleSize, 0, Math.PI * 2);
-    STATE.coversCtx.fill();
-    STATE.coversCtx.globalCompositeOperation = 'source-over';
-    
-    // 2. 命中判定 (仅在主机端或射击端计算，这里简单处理为各自计算，实际应由Host校验)
-    // 为了简化，我们让射击逻辑统一：
-    // 判断子弹是否击中人物的 hitbox
-    const hit = checkHit(x, y);
-    
-    let msg = "未命中";
-    if(hit.dmg > 0) {
-        STATE.hp -= hit.dmg;
-        msg = `命中 ${hit.part} (-${hit.dmg})`;
-    }
-    
-    showStatus(msg);
-    updateUI();
-    
-    // 检查游戏结束
-    if(STATE.hp <= 0) {
-        STATE.hp = 0;
-        STATE.gameOver = true;
-        showStatus("击杀！游戏结束");
-        // 可以在这里加一个由赢家重置游戏的按钮逻辑
-        setTimeout(() => { alert("游戏结束，刷新页面重来"); location.reload(); }, 3000);
-        return;
-    }
-    
-    // 检查弹药
-    if(STATE.bullets <= 0) {
-        setTimeout(swapRoles, 1500);
-    }
-}
+    if(STATE.gameOver) return;
 
-// 碰撞检测
-function checkHit(shotX, shotY) {
-    // 屏幕坐标
-    const sx = shotX * W;
-    const sy = shotY * H;
+    STATE.bullets--;
+    updateUI();
+
+    // 1. 破坏掩体 (根据当前谁是守方，破坏对应的Canvas)
+    // 守方是 currentSniper === 'host' ? client : host
+    const defenderRole = STATE.currentSniper === 'host' ? 'client' : 'host';
+    const ctx = defenderRole === 'host' ? STATE.covers.ctxHost : STATE.covers.ctxClient;
     
-    // 获取人物矩形
-    const charScreenX = (STATE.defenderPos / 100) * W;
-    const charScreenY = H * 0.75; // 地面高度
-    
-    // 获取当前姿势的骨骼数据
-    const bones = getBones(STATE.defenderPose, charScreenX, charScreenY);
-    
-    let bestHit = { part: '', dmg: 0 };
-    
-    // 遍历骨骼
-    for(let part in bones) {
-        const b = bones[part];
-        // 简单的矩形碰撞
-        if(sx >= b.x - b.w/2 && sx <= b.x + b.w/2 &&
-           sy >= b.y - b.h/2 && sy <= b.y + b.h/2) {
-             if(bones[part].dmg > bestHit.dmg) {
-                 bestHit = { part: part, dmg: bones[part].dmg };
-             }
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(x * W, y * H, CFG.coverHoleSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 2. 命中判定
+    // 只有当狙击手开镜(Phase=Aiming)时才有效判定
+    if(STATE.phase === 'aiming') {
+        const hit = checkHit(x, y);
+        
+        if(hit) {
+            // 命中即结束
+            swapRoles(`命中 ${hit}! 攻方胜利!`);
+            return;
         }
     }
-    return bestHit;
+
+    // 未命中
+    if(STATE.bullets <= 0) {
+        swapRoles("子弹耗尽! 守方胜利!");
+    } else {
+        showStatus("未命中!");
+    }
 }
 
-// --- 渲染系统 (Render) ---
+function checkHit(sx, sy) {
+    const bones = getBones(STATE.defenderPose, (STATE.defenderPos/100)*W, H*0.75);
+    const aimX = sx * W;
+    const aimY = sy * H;
+    
+    // 简单矩形检测
+    for(let part in bones) {
+        const b = bones[part];
+        if(aimX >= b.x - b.w/2 && aimX <= b.x + b.w/2 &&
+           aimY >= b.y - b.h/2 && aimY <= b.y + b.h/2) {
+            return part === 'head' ? '头部' : '身体';
+        }
+    }
+    return null;
+}
+
+// --- 渲染 ---
 function draw() {
-    // 1. 基础背景
-    CTX.fillStyle = '#222';
+    // 背景
+    CTX.fillStyle = '#111';
     CTX.fillRect(0, 0, W, H);
     
-    // 绘制地面
-    CTX.fillStyle = '#1a1a1a';
+    // 地面
+    CTX.fillStyle = '#222';
     CTX.fillRect(0, H * 0.75, W, H * 0.25);
-    CTX.strokeStyle = '#333';
+    CTX.strokeStyle = '#444';
     CTX.beginPath();
     CTX.moveTo(0, H * 0.75); CTX.lineTo(W, H * 0.75);
     CTX.stroke();
 
-    // --- 狙击手特有：放大视角处理 ---
-    CTX.save(); // 保存正常视角状态
-    
-    if(isMyTurn() && STATE.isScoped) {
-        // 狙击手视角：以瞄准点为中心放大
-        // 原理：Translate到中心 -> Scale -> Translate回原来的反方向
-        // 但这里为了模拟瞄准镜跟随鼠标，我们需要以鼠标位置为缩放中心
+    const isSniper = isMyTurn();
+    const defenderRole = STATE.currentSniper === 'host' ? 'client' : 'host';
+    const activeCover = defenderRole === 'host' ? STATE.covers.host : STATE.covers.client;
+
+    // 视角处理
+    if(isSniper) {
+        // --- 狙击手视角 ---
         
-        // 简单的实现：整个画面放大，并且根据鼠标位置移动画面（反向移动）
-        // 目标：鼠标指向哪里，哪里就是屏幕中心
+        // 1. 等待阶段黑屏
+        if(STATE.phase === 'waiting') {
+            CTX.fillStyle = 'black';
+            CTX.fillRect(0, 0, W, H);
+            return; // 不渲染其他
+        }
+
+        CTX.save();
         
-        // 这种实现比较复杂，我们换一种简单有效的 "放大镜效果"：
-        // 仍然渲染整个场景，但在最后绘制遮罩时，只保留中间区域。
-        // 这里使用 ctx.scale 放大整个世界
-        
-        const zoom = CFG.zoomLevel;
-        // 计算偏移量，使得 (aimX, aimY) 位于鼠标位置(即屏幕上的点)
-        // 实际上狙击模式下，鼠标一般锁定在屏幕中心或者准星跟随鼠标
-        // 我们让世界围绕 (W*STATE.aimX, H*STATE.aimY) 进行放大
-        
+        // 放大效果 (Zoom)
+        // 移动画布中心到 aimX, aimY，然后放大，再移回
         CTX.translate(W * STATE.aimX, H * STATE.aimY);
-        CTX.scale(zoom, zoom);
+        CTX.scale(CFG.zoomLevel, CFG.zoomLevel);
         CTX.translate(-W * STATE.aimX, -H * STATE.aimY);
-    }
-    
-    // 2. 绘制人物 (Defender)
-    drawDefender();
-    
-    // 3. 绘制掩体
-    if(STATE.coversCanvas) {
-        CTX.drawImage(STATE.coversCanvas, 0, 0);
-    }
-    
-    // 4. 绘制激光指示 (守方可见)
-    if(!isMyTurn() && STATE.phase === 'aiming') {
-        CTX.beginPath();
-        CTX.strokeStyle = 'rgba(255, 0, 0, 0.6)';
-        CTX.lineWidth = 2;
-        // 从屏幕顶部中间射向瞄准点
-        CTX.moveTo(W/2, 0); 
-        CTX.lineTo(W * STATE.aimX, H * STATE.aimY);
-        CTX.stroke();
+
+        // 渲染顺序：人物 -> 掩体 (掩体挡住人物)
+        drawDefender();
+        if(activeCover) CTX.drawImage(activeCover, 0, 0);
         
-        // 瞄准点红点
-        CTX.fillStyle = 'red';
-        CTX.beginPath();
-        CTX.arc(W * STATE.aimX, H * STATE.aimY, 5, 0, Math.PI*2);
-        CTX.fill();
-    }
-    
-    CTX.restore(); // 恢复正常视角 (用于绘制UI遮罩)
-    
-    // 5. 狙击镜遮罩 (仅狙击手)
-    if(isMyTurn() && STATE.isScoped) {
-        const mx = W * STATE.aimX;
-        const my = H * STATE.aimY;
-        const r = CFG.scopeRadius;
+        // 激光点 (自己能看到准心，不需要画激光，但为了统一逻辑可以画个红点)
         
-        // 绘制半透明黑色背景
-        CTX.fillStyle = 'rgba(0, 0, 0, 0.6)'; // 改为半透明
-        CTX.beginPath();
-        CTX.rect(0, 0, W, H);
-        CTX.arc(mx, my, r, 0, Math.PI*2, true); // 挖洞
-        CTX.fill();
+        CTX.restore();
+
+        // 狙击镜遮罩 (不透明灰色)
+        drawScopeMask();
+
+    } else {
+        // --- 守方视角 ---
         
-        // 绘制镜内十字刻度
-        CTX.strokeStyle = 'rgba(0,0,0,0.5)';
-        CTX.lineWidth = 1;
-        CTX.beginPath();
-        CTX.moveTo(mx - r, my); CTX.lineTo(mx + r, my);
-        CTX.moveTo(mx, my - r); CTX.lineTo(mx, my + r);
-        CTX.stroke();
+        // 渲染顺序：掩体 -> 人物 (人物浮在掩体上，X光效果)
+        // 为了让守方知道自己在哪里，我们先画掩体，再画半透明或高亮的人物
         
-        // 红色中心点
-        CTX.fillStyle = 'red';
-        CTX.beginPath();
-        CTX.arc(mx, my, 2, 0, Math.PI*2);
-        CTX.fill();
+        if(activeCover) CTX.drawImage(activeCover, 0, 0);
         
-        // 镜框边缘
-        CTX.strokeStyle = '#111';
-        CTX.lineWidth = 20;
-        CTX.beginPath();
-        CTX.arc(mx, my, r + 10, 0, Math.PI*2);
-        CTX.stroke();
+        // 守方需要看到自己，所以最后画人物
+        drawDefender(true); // true 表示高亮模式
+        
+        // 激光指示线 (只有Aiming阶段显示)
+        if(STATE.phase === 'aiming') {
+            drawLaser();
+        }
     }
 }
 
-// 绘制精细化的人物模型
-function drawDefender() {
-    const x = (STATE.defenderPos / 100) * W;
-    const y = H * 0.75;
-    const bones = getBones(STATE.defenderPose, x, y);
+function drawScopeMask() {
+    const mx = W * STATE.aimX;
+    const my = H * STATE.aimY;
+    const r = CFG.scopeRadius;
     
-    CTX.fillStyle = '#4caf50'; // 军绿色
-    CTX.strokeStyle = '#1b5e20';
-    CTX.lineWidth = 3;
-
-    // 辅助函数：画矩形
-    function drawRect(b, color) {
-        CTX.fillStyle = color || '#4caf50';
-        CTX.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
-        CTX.strokeRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
-    }
-    
-    // 腿部 (Limbs)
-    drawRect(bones.limbs, '#388e3c');
-    
-    // 身体 (Body - 防弹衣)
-    drawRect(bones.body, '#2e7d32');
-    // 防弹衣细节
-    CTX.fillStyle = '#1b5e20';
-    CTX.fillRect(bones.body.x - 5, bones.body.y - 10, 10, 20);
-    
-    // 头部 (Head - 头盔)
-    CTX.fillStyle = '#81c784'; // 肤色/头盔色
+    // 填充纯灰色背景
+    CTX.fillStyle = '#333'; 
     CTX.beginPath();
-    CTX.arc(bones.head.x, bones.head.y, bones.head.w/2, 0, Math.PI*2);
+    CTX.rect(0, 0, W, H);
+    CTX.arc(mx, my, r, 0, Math.PI*2, true); // 挖洞
     CTX.fill();
+    
+    // 镜内十字
+    CTX.strokeStyle = 'rgba(0,0,0,0.8)';
+    CTX.lineWidth = 1;
+    CTX.beginPath();
+    CTX.moveTo(mx - r, my); CTX.lineTo(mx + r, my);
+    CTX.moveTo(mx, my - r); CTX.lineTo(mx, my + r);
     CTX.stroke();
-    // 护目镜
-    CTX.fillStyle = '#333';
-    CTX.fillRect(bones.head.x + (STATE.defenderPose.includes('l') ? -10 : 5), bones.head.y - 5, 15, 6);
+    
+    // 中心红点
+    CTX.fillStyle = 'red';
+    CTX.beginPath();
+    CTX.arc(mx, my, 3, 0, Math.PI*2);
+    CTX.fill();
 }
 
-// 获取骨骼位置数据 (核心：用于绘制和判定)
+function drawLaser() {
+    CTX.beginPath();
+    CTX.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+    CTX.lineWidth = 2;
+    CTX.moveTo(W/2, 0); // 假设从正上方射下
+    CTX.lineTo(W * STATE.aimX, H * STATE.aimY);
+    CTX.stroke();
+    
+    CTX.fillStyle = 'red';
+    CTX.beginPath();
+    CTX.arc(W * STATE.aimX, H * STATE.aimY, 5, 0, Math.PI*2);
+    CTX.fill();
+}
+
+// 骨骼生成与绘制
 function getBones(pose, cx, cy) {
     // 基础尺寸
-    const hW = 30; // 头宽
-    const bW = 40; // 身宽
-    const bH = 60; // 身高
-    const lW = 30; // 腿宽
-    const lH = 50; // 腿高
-    
-    let head = { x: cx, y: cy - lH - bH - hW/2, w: hW, h: hW, dmg: 100 };
-    let body = { x: cx, y: cy - lH - bH/2, w: bW, h: bH, dmg: 30 };
-    let limbs = { x: cx, y: cy - lH/2, w: lW, h: lH, dmg: 10 };
-    
-    // 根据姿势调整偏移
+    let head = { x: cx, y: cy - 90, w: 30, h: 30 };
+    let body = { x: cx, y: cy - 50, w: 40, h: 60 };
+    let leg  = { x: cx, y: cy - 10, w: 30, h: 40 }; // 简化的腿
+    let string = null;
+
     if(pose === 'crouch') {
-        // 蹲下：腿变短，身子下沉
-        limbs.h = 25;
-        limbs.y = cy - 12.5;
-        body.y = cy - 25 - bH/2;
-        head.y = cy - 25 - bH - hW/2;
+        // 蹲下：矮一半
+        head.y = cy - 50;
+        body.y = cy - 25; body.h = 30;
+        leg.y = cy - 5; leg.h = 10;
     }
-    else if(pose === 'lean_l') {
-        // 左探：头和身子向左偏
-        head.x -= 25;
-        body.x -= 10;
-        // 增加一点旋转效果的偏移
+    else if(pose === 'lie') {
+        // 躺平：贴地，宽扁
+        head = { x: cx - 40, y: cy - 10, w: 30, h: 20 };
+        body = { x: cx, y: cy - 10, w: 60, h: 20 };
+        leg  = { x: cx + 40, y: cy - 10, w: 30, h: 15 };
     }
-    else if(pose === 'lean_r') {
-        head.x += 25;
-        body.x += 10;
+    else if(pose === 'fly') {
+        // 飞天：上移 200px
+        const flyH = 200;
+        head.y -= flyH;
+        body.y -= flyH; body.w = 30; body.h = 30; // 蜷缩
+        leg.y -= flyH; leg.w = 0; leg.h = 0; // 收腿
+        string = { x1: cx, y1: cy, x2: cx, y2: body.y + 15 }; // 绳子
     }
     
-    return { head, body, limbs };
+    return { head, body, leg, string };
 }
 
-// --- UI 更新 ---
+function drawDefender(highlight = false) {
+    const cx = (STATE.defenderPos / 100) * W;
+    const cy = H * 0.75;
+    const bones = getBones(STATE.defenderPose, cx, cy);
+    
+    CTX.fillStyle = highlight ? '#81c784' : '#4caf50'; // 守方自己看更亮一点
+    CTX.strokeStyle = '#1b5e20';
+    CTX.lineWidth = 3;
+    
+    // 飞天绳子
+    if(bones.string) {
+        CTX.strokeStyle = 'white';
+        CTX.lineWidth = 1;
+        CTX.beginPath();
+        CTX.moveTo(bones.string.x1, bones.string.y1);
+        CTX.lineTo(bones.string.x2, bones.string.y2);
+        CTX.stroke();
+    }
+    
+    // 绘制各部位
+    ['leg', 'body', 'head'].forEach(part => {
+        const b = bones[part];
+        if(!b || b.w === 0) return;
+        
+        CTX.fillStyle = (part === 'head') ? '#a5d6a7' : (highlight ? '#66bb6a' : '#2e7d32');
+        
+        CTX.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
+        CTX.strokeRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
+        
+        // 简单的五官方向指示
+        if(part === 'head') {
+            CTX.fillStyle = '#111';
+            // 永远看向屏幕外侧(简单处理)
+            CTX.fillRect(b.x - 5, b.y - 5, 10, 4);
+        }
+    });
+}
+
 function updateUI() {
-    // 控制显示
-    const isDef = !isMyTurn();
-    document.getElementById('defender-controls').style.display = isDef ? 'block' : 'none';
-    document.getElementById('crosshair').style.display = 'none'; // 我们用Canvas画了
-
-    // 文字信息
-    let roleStr = isMyTurn() ? "狙击手 (你)" : "躲避者 (你)";
-    let enemyStr = isMyTurn() ? "目标" : "狙击手";
+    const isSniper = isMyTurn();
+    document.getElementById('defender-controls').style.display = (!isSniper && STATE.phase !== 'result') ? 'block' : 'none';
     
-    document.getElementById('p1-info').innerText = `${roleStr} | 子弹: ${STATE.bullets}`;
-    document.getElementById('p2-info').innerText = `${enemyStr} HP: ${STATE.hp}%`;
+    document.getElementById('p1-info').innerText = isSniper ? `狙击手 | 子弹: ${STATE.bullets}` : `伪装者 | 躲避狙击`;
+    document.getElementById('p2-info').innerText = STATE.phase === 'waiting' ? "准备阶段" : "交战中";
     
-    // 血量颜色警告
-    document.getElementById('p2-info').style.color = STATE.hp < 30 ? 'red' : 'white';
+    // 刷新冷却按钮状态
+    if(!isSniper) updatePoseButtons();
 }
 
-function showStatus(msg) {
-    const el = document.getElementById('status-msg');
-    el.innerText = msg;
-    el.style.display = 'block';
-    // 不自动隐藏，由逻辑控制内容
-}
-
-// --- 主循环 ---
 function loop() {
     updateDefender();
     draw();
