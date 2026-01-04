@@ -2,36 +2,54 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>狙击对决 - 完美同步版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>狙击对决 - 移动适配版</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; -webkit-user-select: none; touch-action: none; }
         
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 10; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; box-sizing: border-box; z-index: 10; }
         
-        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); padding: 40px; border-radius: 12px; text-align: center; pointer-events: auto; border: 1px solid #555; z-index: 100; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        /* 菜单样式 */
+        #menu, #result-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); padding: 30px; border-radius: 12px; text-align: center; pointer-events: auto; border: 1px solid #555; z-index: 100; box-shadow: 0 0 30px rgba(0,0,0,0.8); width: 80%; max-width: 400px; }
+        #result-modal { display: none; }
         
-        input { padding: 12px; font-size: 18px; margin: 15px 0; width: 220px; text-align: center; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
-        button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #d32f2f; color: white; border: none; border-radius: 4px; margin: 5px; transition: 0.2s; font-weight: bold; }
-        button:hover { background: #b71c1c; }
-        button:disabled { background: #444; cursor: not-allowed; opacity: 0.7; }
+        input { padding: 12px; font-size: 18px; margin: 15px 0; width: 80%; text-align: center; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
+        button.menu-btn { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #d32f2f; color: white; border: none; border-radius: 4px; margin: 5px; transition: 0.2s; font-weight: bold; width: 100%; margin-bottom: 10px;}
+        button.menu-btn:hover { background: #b71c1c; }
+        button.menu-btn:disabled { background: #444; cursor: not-allowed; opacity: 0.7; }
         
-        .hud-text { font-size: 20px; text-shadow: 2px 2px 0px black; font-weight: bold; letter-spacing: 1px; }
-        .top-bar { display: flex; justify-content: space-between; width: 100%; }
+        /* HUD */
+        .hud-text { font-size: 16px; text-shadow: 2px 2px 0px black; font-weight: bold; letter-spacing: 1px; }
+        .top-bar { display: flex; justify-content: space-between; width: 100%; align-items: flex-start; }
+        .hp-bar-bg { width: 100px; height: 10px; background: #333; border: 1px solid #fff; margin-top: 5px; }
+        .hp-bar-fill { height: 100%; background: #4caf50; transition: width 0.3s; }
         
-        #status-msg { color: #ffeb3b; font-weight: bold; font-size: 40px; text-align: center; position: absolute; top: 35%; width: 100%; text-shadow: 0 0 15px black; display: none; z-index: 20; pointer-events: none; }
+        #status-msg { color: #ffeb3b; font-weight: bold; font-size: 30px; text-align: center; position: absolute; top: 20%; width: 100%; text-shadow: 0 0 10px black; display: none; z-index: 20; pointer-events: none; }
         
-        /* 姿势控制栏 */
-        #defender-controls { display: none; pointer-events: auto; text-align: center; margin-bottom: 20px; }
-        .pose-container { display: flex; justify-content: center; gap: 12px; }
-        .pose-btn { background: #263238; border: 2px solid #546e7a; width: 75px; height: 85px; border-radius: 8px; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.1s; color: #eceff1; }
+        /* 底部控制区 */
+        #bottom-controls { display: flex; flex-direction: column; align-items: center; pointer-events: none; width: 100%; margin-bottom: 10px;}
+        
+        /* 姿势按钮 */
+        .pose-container { display: flex; justify-content: center; gap: 8px; pointer-events: auto; margin-bottom: 15px; }
+        .pose-btn { background: #263238; border: 2px solid #546e7a; width: 60px; height: 70px; border-radius: 8px; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.1s; color: #eceff1; padding: 0;}
         .pose-btn.active { background: #2e7d32; border-color: #66bb6a; transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px rgba(76, 175, 80, 0.5); }
         .pose-btn:disabled { background: #1a1a1a; border-color: #333; color: #555; }
-        .pose-icon { font-size: 26px; margin-bottom: 6px; }
-        .key-hint { position: absolute; top: 4px; left: 6px; font-size: 10px; color: #90a4ae; font-weight: bold; }
-        
+        .pose-icon { font-size: 24px; margin-bottom: 2px; }
+        .key-hint { position: absolute; top: 2px; left: 4px; font-size: 9px; color: #90a4ae; font-weight: bold; }
         .cooldown-mask { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6); height: 0%; transition: height 1s linear; border-radius: 0 0 6px 6px; }
+
+        /* 移动端专属控制 */
+        .mobile-btn { pointer-events: auto; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; color: white; display: none; justify-content: center; align-items: center; font-size: 24px; user-select: none;}
+        .mobile-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* 左右移动 */
+        #move-controls { display: none; width: 100%; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; margin-top: 10px;}
+        .arrow-btn { width: 70px; height: 70px; pointer-events: auto; background: rgba(0, 150, 136, 0.3); border-color: rgba(0, 150, 136, 0.6); }
+
+        /* 开火按钮 */
+        #fire-btn { width: 90px; height: 90px; background: rgba(211, 47, 47, 0.4); border: 3px solid rgba(229, 57, 57, 0.8); position: absolute; bottom: 30px; right: 30px; display: none; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 2px black; box-shadow: 0 0 15px rgba(255,0,0,0.3); z-index: 50; }
+        #fire-btn:active { background: rgba(211, 47, 47, 0.7); transform: scale(0.95); }
 
     </style>
 </head>
@@ -41,94 +59,121 @@
 
     <div id="ui-layer">
         <div class="top-bar">
-            <div id="p1-info" class="hud-text">等待连接...</div>
-            <div id="phase-info" class="hud-text" style="color:#ffd700"></div>
-            <div id="p2-info" class="hud-text"></div>
+            <!-- 玩家1信息 (本机) -->
+            <div>
+                <div id="p1-info" class="hud-text">等待连接...</div>
+                <div id="p1-hp-bar" class="hp-bar-bg" style="display:none"><div id="p1-hp-fill" class="hp-bar-fill" style="width:100%"></div></div>
+            </div>
+            
+            <div id="phase-info" class="hud-text" style="color:#ffd700; text-align: center;"></div>
+            
+            <!-- 玩家2信息 -->
+            <div style="text-align: right;">
+                <div id="p2-info" class="hud-text"></div>
+                <div id="p2-hp-bar" class="hp-bar-bg" style="display:none"><div id="p2-hp-fill" class="hp-bar-fill" style="width:100%"></div></div>
+            </div>
         </div>
         
         <div id="status-msg"></div>
 
-        <div id="defender-controls">
-            <div style="color: #bbb; margin-bottom: 8px; font-size: 14px; text-shadow: 1px 1px 0 #000;">
-                ← AD 移动 | 数字键 1-4 切换姿势
+        <!-- 狙击手专属UI -->
+        <button id="fire-btn" class="mobile-btn" ontouchstart="fireShot()" onclick="fireShot()">开火</button>
+
+        <!-- 守方专属UI -->
+        <div id="bottom-controls">
+            <div id="defender-controls">
+                <div style="color: #bbb; margin-bottom: 5px; font-size: 12px; text-shadow: 1px 1px 0 #000; text-align: center;">
+                    数字键 1-4 切换姿势
+                </div>
+                <div class="pose-container">
+                    <button class="pose-btn active" id="btn-stand" onclick="requestPose('stand')">
+                        <span class="key-hint">1</span><span class="pose-icon">🧍</span>站立<div class="cooldown-mask"></div>
+                    </button>
+                    <button class="pose-btn" id="btn-crouch" onclick="requestPose('crouch')">
+                        <span class="key-hint">2</span><span class="pose-icon">🧘</span>蹲下<div class="cooldown-mask"></div>
+                    </button>
+                    <button class="pose-btn" id="btn-lie" onclick="requestPose('lie')">
+                        <span class="key-hint">3</span><span class="pose-icon">🛌</span>躺下<div class="cooldown-mask"></div>
+                    </button>
+                    <button class="pose-btn" id="btn-fly" onclick="requestPose('fly')">
+                        <span class="key-hint">4</span><span class="pose-icon">🎈</span>飞天<div class="cooldown-mask"></div>
+                    </button>
+                </div>
             </div>
-            <div class="pose-container">
-                <button class="pose-btn active" id="btn-stand" onclick="requestPose('stand')">
-                    <span class="key-hint">1</span>
-                    <span class="pose-icon">🧍</span>站立
-                    <div class="cooldown-mask"></div>
-                </button>
-                <button class="pose-btn" id="btn-crouch" onclick="requestPose('crouch')">
-                    <span class="key-hint">2</span>
-                    <span class="pose-icon">🧘</span>蹲下
-                    <div class="cooldown-mask"></div>
-                </button>
-                <button class="pose-btn" id="btn-lie" onclick="requestPose('lie')">
-                    <span class="key-hint">3</span>
-                    <span class="pose-icon">🛌</span>躺下
-                    <div class="cooldown-mask"></div>
-                </button>
-                <button class="pose-btn" id="btn-fly" onclick="requestPose('fly')">
-                    <span class="key-hint">4</span>
-                    <span class="pose-icon">🎈</span>飞天
-                    <div class="cooldown-mask"></div>
-                </button>
+
+            <!-- 移动端左右移动 -->
+            <div id="move-controls">
+                <button class="mobile-btn arrow-btn" ontouchstart="setMove(-1)" ontouchend="setMove(0)" onmousedown="setMove(-1)" onmouseup="setMove(0)">←</button>
+                <button class="mobile-btn arrow-btn" ontouchstart="setMove(1)" ontouchend="setMove(0)" onmousedown="setMove(1)" onmouseup="setMove(0)">→</button>
             </div>
         </div>
     </div>
 
+    <!-- 主菜单 -->
     <div id="menu">
-        <h1 style="color:#e53935; margin:0 0 10px 0; font-style: italic;">SNIPER DUEL <span style="font-size:0.4em; color:#fff; font-style: normal;">SYNC FIX</span></h1>
+        <h1 style="color:#e53935; margin:0 0 10px 0; font-style: italic;">SNIPER DUEL <span style="font-size:0.4em; color:#fff; font-style: normal;">MOBILE</span></h1>
         <p style="color:#aaa; font-size:14px; margin-bottom: 20px;">纯HTML5实现的P2P狙击博弈</p>
         <input type="text" id="room-id" placeholder="输入房间号 (如: 888)" value="888">
         <br>
-        <button id="btn-create" onclick="initNetwork('host')">创建房间 (先手狙击)</button>
-        <button id="btn-join" onclick="initNetwork('client')">加入房间 (后手躲避)</button>
-        <p id="conn-status" style="font-size: 13px; color: #888; margin-top:15px;">等待操作...</p>
+        <button class="menu-btn" id="btn-create" onclick="initNetwork('host')">创建房间 (先手狙击)</button>
+        <button class="menu-btn" id="btn-join" onclick="initNetwork('client')">加入房间 (后手躲避)</button>
+        <p id="conn-status" style="font-size: 13px; color: #888; margin-top:15px;">推荐在手机横屏下游玩</p>
+    </div>
+
+    <!-- 结算弹窗 -->
+    <div id="result-modal">
+        <h2 id="result-title" style="color: gold; font-size: 28px;">游戏结束</h2>
+        <p id="result-desc" style="color: #ddd; margin-bottom: 25px;"></p>
+        <button class="menu-btn" onclick="restartGame()">再来一局</button>
+        <button class="menu-btn" style="background:#555;" onclick="location.reload()">返回大厅</button>
     </div>
 
 <script>
 // --- 游戏配置 ---
 const CFG = {
-    moveSpeed: 0.18,
+    moveSpeed: 0.09, // 守方移动速度 (原0.18，已减半)
     zoomLevel: 2.5,  // 放大倍数
     scopeRadius: 300,
     coverHoleSize: 40,
-    cooldownTime: 1000 // 姿势切换冷却
+    cooldownTime: 1000, // 姿势切换冷却
+    
+    // 伤害配置
+    hpMax: 100,
+    healPerRound: 10,
+    dmgLimb: 10,
+    dmgBody: 30,
+    dmgHead: 100
 };
 
 // --- 全局状态 ---
 const STATE = {
-    // 网络相关
     netRole: null, // 'host' (房主) 或 'client'
     conn: null,
     peer: null,
     
-    // 游戏核心
-    currentSniper: 'host', // 当前谁是狙击手
-    phase: 'menu',         // menu, waiting(黑屏), aiming(开镜), result(结算)
+    currentSniper: 'host', 
+    phase: 'menu',         
     bullets: 3,
     
-    // 玩家数据
-    defenderPos: 50,    // 0-100
+    // 玩家 HP
+    playerHP: {
+        host: CFG.hpMax,
+        client: CFG.hpMax
+    },
+
+    defenderPos: 50,    
     defenderPose: 'stand',
     
-    // 狙击手数据
     aimX: 0.5,
     aimY: 0.5,
     
-    // 姿势冷却时间戳
     cooldowns: { stand: 0, crouch: 0, lie: 0, fly: 0 },
     
-    // 双掩体系统 (离屏Canvas)
-    covers: {
-        host: null,   // Host做守方时的掩体
-        client: null, // Client做守方时的掩体
-        ctxHost: null,
-        ctxClient: null
-    },
+    // 虚拟掩体
+    covers: { host: null, client: null, ctxHost: null, ctxClient: null },
     
-    isGameRunning: false // 逻辑锁
+    isGameRunning: false,
+    mobileMoveDir: 0 // 移动端移动方向 -1, 0, 1
 };
 
 // --- Canvas 初始化 ---
@@ -145,7 +190,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// 初始化双掩体
+// 初始化双掩体 (加高掩体)
 function initCovers() {
     ['host', 'client'].forEach(key => {
         const c = document.createElement('canvas');
@@ -153,19 +198,19 @@ function initCovers() {
         c.height = window.innerHeight;
         const ctx = c.getContext('2d');
         
-        // 绘制墙体
+        // 绘制墙体 (加高，避免飞天露头)
         ctx.fillStyle = '#4e342e';
         const w = c.width, h = c.height;
         
-        // 两个掩体块
-        ctx.fillRect(w * 0.15, h * 0.65, w * 0.18, h * 0.35);
-        ctx.fillRect(w * 0.60, h * 0.60, w * 0.20, h * 0.40);
+        // 掩体稍微高一点，Y坐标从0.65改为0.45
+        ctx.fillRect(w * 0.15, h * 0.45, w * 0.18, h * 0.55);
+        ctx.fillRect(w * 0.60, h * 0.40, w * 0.20, h * 0.60);
         
-        // 边框和纹理
+        // 边框
         ctx.strokeStyle = '#3e2723';
         ctx.lineWidth = 6;
-        ctx.strokeRect(w * 0.15, h * 0.65, w * 0.18, h * 0.35);
-        ctx.strokeRect(w * 0.60, h * 0.60, w * 0.20, h * 0.40);
+        ctx.strokeRect(w * 0.15, h * 0.45, w * 0.18, h * 0.55);
+        ctx.strokeRect(w * 0.60, h * 0.40, w * 0.20, h * 0.60);
         
         // 标记区域
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -188,12 +233,14 @@ function initNetwork(role) {
     
     STATE.netRole = role;
     STATE.currentSniper = 'host';
+    // 重置HP
+    STATE.playerHP.host = CFG.hpMax;
+    STATE.playerHP.client = CFG.hpMax;
     
     document.getElementById('btn-create').disabled = true;
     document.getElementById('btn-join').disabled = true;
     log("正在连接云端...");
 
-    // 生成唯一的PeerID
     const myId = role === 'host' ? `sd_v3_${room}_h` : `sd_v3_${room}_c`;
     const targetId = role === 'host' ? `sd_v3_${room}_c` : `sd_v3_${room}_h`;
     
@@ -222,8 +269,6 @@ function setupConn(conn) {
     conn.on('open', () => {
         log("连接成功!");
         document.getElementById('menu').style.display = 'none';
-        
-        // 只有Host有权开始游戏循环
         if(STATE.netRole === 'host') {
             hostStartRound();
         }
@@ -236,34 +281,32 @@ function send(data) {
     if(STATE.conn && STATE.conn.open) STATE.conn.send(data);
 }
 
-// --- 游戏流程控制 (Host 权威模式) ---
+// --- 游戏流程控制 ---
 
 // Host启动新回合
 function hostStartRound() {
-    // 重置数据
     const initialState = {
         phase: 'waiting',
         bullets: 3,
         defenderPos: 50,
         defenderPose: 'stand',
-        msg: "准备阶段... 5"
+        msg: "准备阶段... 5",
+        hp: STATE.playerHP // 同步HP
     };
     
-    // 广播初始状态
     send({ type: 'ROUND_START', state: initialState });
     applyRoundStart(initialState);
     
-    // Host 运行倒计时
     let count = 5;
     const timer = setInterval(() => {
+        if(!STATE.isGameRunning && STATE.phase !== 'waiting') { clearInterval(timer); return; }
         count--;
         if(count > 0) {
             const msg = `准备阶段... ${count}`;
-            showStatus(msg); // 本地显示
-            send({ type: 'STATUS_MSG', msg: msg }); // 广播显示
+            showStatus(msg);
+            send({ type: 'STATUS_MSG', msg: msg });
         } else {
             clearInterval(timer);
-            // 时间到，进入瞄准
             const aimingState = { phase: 'aiming', msg: "开火!" };
             send({ type: 'PHASE_CHANGE', state: aimingState });
             applyPhaseChange(aimingState);
@@ -271,14 +314,15 @@ function hostStartRound() {
     }, 1000);
 }
 
-// 通用的应用状态函数
 function applyRoundStart(data) {
     STATE.phase = data.phase;
     STATE.bullets = data.bullets;
     STATE.defenderPos = data.defenderPos;
     STATE.defenderPose = data.defenderPose;
+    STATE.playerHP = data.hp; // 更新HP
+    
     STATE.isGameRunning = true;
-    STATE.cooldowns = { stand: 0, crouch: 0, lie: 0, fly: 0 }; // 重置冷却
+    STATE.cooldowns = { stand: 0, crouch: 0, lie: 0, fly: 0 };
     
     showStatus(data.msg);
     updateUI();
@@ -287,24 +331,64 @@ function applyRoundStart(data) {
 function applyPhaseChange(data) {
     STATE.phase = data.phase;
     showStatus(data.msg);
-    setTimeout(() => showStatus(""), 1000); // 1秒后隐藏"开火"提示
+    setTimeout(() => showStatus(""), 1000);
     updateUI();
 }
 
-// 攻守交换逻辑
+// 攻守交换 / 游戏结束检测
 function triggerSwap(reasonMsg) {
-    STATE.isGameRunning = false; // 锁定输入
-    showStatus(reasonMsg); // 显示结果
+    STATE.isGameRunning = false;
+    showStatus(reasonMsg);
     
-    // 如果是Host，负责安排下一轮
+    // 检查是否有人死亡
+    const p1Dead = STATE.playerHP.host <= 0;
+    const p2Dead = STATE.playerHP.client <= 0;
+    
+    if(p1Dead || p2Dead) {
+        setTimeout(() => {
+            showResultModal(p1Dead, p2Dead);
+        }, 2000);
+        return;
+    }
+    
+    // 没人死，交换角色继续
     if(STATE.netRole === 'host') {
         setTimeout(() => {
             STATE.currentSniper = (STATE.currentSniper === 'host') ? 'client' : 'host';
-            // 通知所有人换角色了
             send({ type: 'ROLE_SWAP', currentSniper: STATE.currentSniper });
-            // 开始新一轮
             hostStartRound();
         }, 3000);
+    }
+}
+
+function showResultModal(p1Dead, p2Dead) {
+    document.getElementById('result-modal').style.display = 'block';
+    const title = document.getElementById('result-title');
+    const desc = document.getElementById('result-desc');
+    
+    let winner = '';
+    if(p1Dead) winner = 'Client (玩家B)';
+    if(p2Dead) winner = 'Host (玩家A)';
+    
+    let isMeWinner = false;
+    if(STATE.netRole === 'host' && p2Dead) isMeWinner = true;
+    if(STATE.netRole === 'client' && p1Dead) isMeWinner = true;
+    
+    title.innerText = isMeWinner ? "胜利!" : "失败";
+    title.style.color = isMeWinner ? "#4caf50" : "#e53935";
+    desc.innerText = `最终胜者: ${winner}`;
+}
+
+// 重新开始游戏 (复活)
+window.restartGame = function() {
+    document.getElementById('result-modal').style.display = 'none';
+    if(STATE.netRole === 'host') {
+        STATE.playerHP = { host: CFG.hpMax, client: CFG.hpMax };
+        STATE.currentSniper = 'host'; // 重置为host先手
+        hostStartRound();
+    } else {
+        // Client等待Host开始
+        showStatus("等待房主重开...");
     }
 }
 
@@ -316,44 +400,35 @@ function handleData(data) {
         case 'STATUS_MSG': showStatus(data.msg); break;
         case 'PHASE_CHANGE': applyPhaseChange(data.state); break;
         case 'ROLE_SWAP': STATE.currentSniper = data.currentSniper; break;
-        
-        case 'AIM': // 守方收到瞄准坐标
-            if(!isMyTurn()) { STATE.aimX = data.x; STATE.aimY = data.y; } 
-            break;
-            
-        case 'MOVE': // 狙击手收到移动数据
-            if(isMyTurn()) { STATE.defenderPos = data.pos; STATE.defenderPose = data.pose; } 
-            break;
-            
-        case 'SHOT_RESULT': // 接收射击结果 (权威)
-            processShotResult(data);
-            break;
+        case 'AIM': if(!isMyTurn()) { STATE.aimX = data.x; STATE.aimY = data.y; } break;
+        case 'MOVE': if(isMyTurn()) { STATE.defenderPos = data.pos; STATE.defenderPose = data.pose; } break;
+        case 'SHOT_RESULT': processShotResult(data); break;
     }
 }
 
-function isMyTurn() {
-    return STATE.netRole === STATE.currentSniper;
-}
+function isMyTurn() { return STATE.netRole === STATE.currentSniper; }
 
-// 姿势切换请求
 window.requestPose = function(newPose) {
     if(!STATE.isGameRunning || isMyTurn()) return;
     if(STATE.defenderPose === newPose) return;
     
     const now = Date.now();
-    if(now < STATE.cooldowns[newPose]) return; // 冷却中
+    if(now < STATE.cooldowns[newPose]) return; 
     
-    // 设置旧姿势冷却
     STATE.cooldowns[STATE.defenderPose] = now + CFG.cooldownTime;
-    
     STATE.defenderPose = newPose;
     updatePoseButtons();
-    
-    // 发送
     send({ type: 'MOVE', pos: STATE.defenderPos, pose: newPose });
 }
 
-// 键盘与鼠标
+window.setMove = function(dir) { STATE.mobileMoveDir = dir; }
+window.fireShot = function() {
+    if(!isMyTurn() || STATE.phase !== 'aiming' || !STATE.isGameRunning) return;
+    if(STATE.bullets <= 0) return;
+    performShot();
+}
+
+// 键盘控制
 const keys = {};
 window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
@@ -366,101 +441,144 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-// 守方移动循环
+// 触摸瞄准 (移动狙击镜)
+CANVAS.addEventListener('touchstart', handleTouchAim, {passive: false});
+CANVAS.addEventListener('touchmove', handleTouchAim, {passive: false});
+
+function handleTouchAim(e) {
+    if(!isMyTurn() || STATE.phase !== 'aiming' || !STATE.isGameRunning) return;
+    e.preventDefault(); 
+    const touch = e.touches[0];
+    STATE.aimX = touch.clientX / W;
+    STATE.aimY = touch.clientY / H;
+    send({ type: 'AIM', x: STATE.aimX, y: STATE.aimY });
+}
+
 function updateDefenderMove() {
     if(!STATE.isGameRunning || isMyTurn()) return;
     
-    // 守方在waiting阶段也能移动！
     let move = 0;
     if(keys['KeyA'] || keys['ArrowLeft']) move = -1;
     if(keys['KeyD'] || keys['ArrowRight']) move = 1;
+    if(STATE.mobileMoveDir !== 0) move = STATE.mobileMoveDir;
     
     if(move !== 0) {
-        STATE.defenderPos += move * CFG.moveSpeed;
+        STATE.defenderPos += move * CFG.moveSpeed; // 速度减半
         STATE.defenderPos = Math.max(0, Math.min(100, STATE.defenderPos));
         send({ type: 'MOVE', pos: STATE.defenderPos, pose: STATE.defenderPose });
     }
 }
 
-// 狙击瞄准与射击
+// 狙击手PC端鼠标控制
 window.addEventListener('mousemove', (e) => {
     if(!isMyTurn() || STATE.phase !== 'aiming' || !STATE.isGameRunning) return;
+    // 如果有触摸事件正在发生，忽略鼠标，避免冲突
     STATE.aimX = e.clientX / W;
     STATE.aimY = e.clientY / H;
     send({ type: 'AIM', x: STATE.aimX, y: STATE.aimY });
 });
 
+// PC端鼠标点击开火
 window.addEventListener('mousedown', (e) => {
+    if(e.target.tagName === 'BUTTON') return; // 避免点按钮触发
     if(!isMyTurn() || STATE.phase !== 'aiming' || !STATE.isGameRunning) return;
     if(STATE.bullets <= 0) return;
+    performShot();
+});
 
-    // 1. 狙击手本地计算命中 (权威)
-    const hitRes = checkHit(STATE.aimX, STATE.aimY);
+function performShot() {
+    // 权威计算
+    const hitPart = checkHit(STATE.aimX, STATE.aimY);
+    let damage = 0;
+    
+    if(hitPart === 'head') damage = CFG.dmgHead;
+    else if(hitPart === 'body') damage = CFG.dmgBody;
+    else if(hitPart === 'leg') damage = CFG.dmgLimb;
+
     const newBullets = STATE.bullets - 1;
     
     const resultData = {
         type: 'SHOT_RESULT',
         x: STATE.aimX,
         y: STATE.aimY,
-        hit: hitRes, // null 或 '头部'/'身体'
+        hitPart: hitPart, // 'head', 'body', 'leg', null
+        damage: damage,
         bullets: newBullets
     };
     
-    // 2. 发送结果给守方
     send(resultData);
-    
-    // 3. 本地执行结果
     processShotResult(resultData);
-});
+}
 
-// 处理射击结果 (双方通用)
 function processShotResult(data) {
     STATE.bullets = data.bullets;
+    
+    // 确定受害者
+    const defenderRole = STATE.currentSniper === 'host' ? 'client' : 'host';
+    
+    // 扣血
+    if(data.damage > 0) {
+        STATE.playerHP[defenderRole] -= data.damage;
+        if(STATE.playerHP[defenderRole] < 0) STATE.playerHP[defenderRole] = 0;
+    }
+
     updateUI();
 
-    // 1. 挖洞 (根据当前的守方是谁，挖对应的掩体)
-    const defenderRole = STATE.currentSniper === 'host' ? 'client' : 'host';
+    // 挖洞
     const ctx = defenderRole === 'host' ? STATE.covers.ctxHost : STATE.covers.ctxClient;
-    
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     ctx.arc(data.x * W, data.y * H, CFG.coverHoleSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
     
-    // 2. 判断胜负
-    if(data.hit) {
-        // 命中，攻方胜
-        triggerSwap(`命中 ${data.hit}! 攻方胜利!`);
+    // 判定逻辑
+    if(data.damage > 0) {
+        // 命中
+        let partText = data.hitPart === 'head' ? '头部' : (data.hitPart === 'body' ? '身体' : '四肢');
+        
+        if(data.hitPart === 'head' || STATE.playerHP[defenderRole] <= 0) {
+            triggerSwap(`命中${partText}! 伤害${data.damage} (击杀)`);
+        } else {
+            // 虽然打中了但没死，本轮结束
+            triggerSwap(`命中${partText}! 伤害${data.damage}`);
+        }
     } else {
         // 未命中
         if(STATE.bullets <= 0) {
-            triggerSwap("子弹耗尽! 守方胜利!");
+            // 回合结束，守方无伤，加血
+            if(STATE.playerHP[defenderRole] < CFG.hpMax) {
+                STATE.playerHP[defenderRole] = Math.min(CFG.hpMax, STATE.playerHP[defenderRole] + CFG.healPerRound);
+                triggerSwap("完美躲避! 守方HP +10");
+            } else {
+                triggerSwap("子弹耗尽! 守方胜利");
+            }
         } else {
-            // 只是普通未命中，显示提示
             showStatus("未命中!");
             setTimeout(() => showStatus(""), 500);
         }
     }
 }
 
-// 命中判定算法
+// 判定算法
 function checkHit(sx, sy) {
     const bones = getBones(STATE.defenderPose, (STATE.defenderPos/100)*W, H*0.75);
     const aimX = sx * W;
     const aimY = sy * H;
     
-    for(let part in bones) {
-        if(part === 'string') continue; // 绳子不算
-        const b = bones[part];
-        if(aimX >= b.x - b.w/2 && aimX <= b.x + b.w/2 &&
-           aimY >= b.y - b.h/2 && aimY <= b.y + b.h/2) {
-            return part === 'head' ? '头部' : '身体';
-        }
-    }
+    // 优先检测头部
+    if(isInside(aimX, aimY, bones.head)) return 'head';
+    if(isInside(aimX, aimY, bones.body)) return 'body';
+    if(isInside(aimX, aimY, bones.leg)) return 'leg';
+    
     return null;
 }
 
+function isInside(x, y, rect) {
+    if(!rect || rect.w <= 0) return false;
+    return x >= rect.x - rect.w/2 && x <= rect.x + rect.w/2 &&
+           y >= rect.y - rect.h/2 && y <= rect.y + rect.h/2;
+}
 
 // --- 渲染系统 ---
 
@@ -479,9 +597,6 @@ function draw() {
     const activeCover = defenderRole === 'host' ? STATE.covers.host : STATE.covers.client;
 
     if(isSniper) {
-        // --- 狙击视角 ---
-        
-        // 准备阶段：黑屏 + 文字
         if(STATE.phase === 'waiting') {
             CTX.fillStyle = 'black';
             CTX.fillRect(0, 0, W, H);
@@ -489,33 +604,20 @@ function draw() {
         }
 
         CTX.save();
-        // 放大效果
         CTX.translate(W * STATE.aimX, H * STATE.aimY);
         CTX.scale(CFG.zoomLevel, CFG.zoomLevel);
         CTX.translate(-W * STATE.aimX, -H * STATE.aimY);
 
-        // 顺序：人 -> 掩体 (人被遮挡)
         drawDefender();
         if(activeCover) CTX.drawImage(activeCover, 0, 0);
 
         CTX.restore();
-        
-        // 狙击镜遮罩 (纯深灰，不透明)
         drawScopeMask();
 
     } else {
-        // --- 守方视角 ---
-        
-        // 顺序：掩体 -> 人 (透视)
         if(activeCover) CTX.drawImage(activeCover, 0, 0);
-        
-        // 高亮显示自己
         drawDefender(true);
-        
-        // 只有在Aiming阶段才显示激光
-        if(STATE.phase === 'aiming') {
-            drawLaser();
-        }
+        if(STATE.phase === 'aiming') drawLaser();
     }
 }
 
@@ -524,14 +626,13 @@ function drawScopeMask() {
     const my = H * STATE.aimY;
     const r = CFG.scopeRadius;
     
-    // 纯色填充外部
     CTX.fillStyle = '#212121'; 
     CTX.beginPath();
     CTX.rect(0, 0, W, H);
     CTX.arc(mx, my, r, 0, Math.PI*2, true); 
     CTX.fill();
     
-    // 准星
+    // 十字准星
     CTX.strokeStyle = 'rgba(0,0,0,0.8)';
     CTX.lineWidth = 1;
     CTX.beginPath();
@@ -550,12 +651,11 @@ function drawLaser() {
     CTX.moveTo(W/2, 0);
     CTX.lineTo(W * STATE.aimX, H * STATE.aimY);
     CTX.stroke();
-    
     CTX.fillStyle = 'red';
     CTX.beginPath(); CTX.arc(W * STATE.aimX, H * STATE.aimY, 5, 0, Math.PI*2); CTX.fill();
 }
 
-// 骨骼定义
+// 骨骼定义 (修正了飞天高度)
 function getBones(pose, cx, cy) {
     let head = { x: cx, y: cy - 90, w: 30, h: 30 };
     let body = { x: cx, y: cy - 50, w: 40, h: 60 };
@@ -571,9 +671,11 @@ function getBones(pose, cx, cy) {
         body = { x: cx, y: cy - 8, w: 60, h: 16 };
         leg  = { x: cx + 40, y: cy - 8, w: 30, h: 16 };
     } else if(pose === 'fly') {
-        const flyH = 220;
-        head.y -= flyH;
-        body.y -= flyH; body.w = 32; body.h = 32; // 蜷缩成球
+        // 降低高度，使得身体中心与站立状态(cy - 50)接近
+        // 原来飞天高度220，现在改为60左右，让它离地但不要太高
+        const flyOffset = 80; 
+        head.y -= flyOffset;
+        body.y -= flyOffset; body.w = 32; body.h = 32; // 蜷缩成球
         leg.w = 0; leg.h = 0; 
         string = { x1: cx, y1: cy, x2: cx, y2: body.y + 16 };
     }
@@ -604,7 +706,6 @@ function drawDefender(highlight = false) {
         CTX.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
         CTX.strokeRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
         
-        // 眼睛
         if(part === 'head') {
             CTX.fillStyle = '#263238';
             CTX.fillRect(b.x - 8, b.y - 4, 16, 4);
@@ -615,15 +716,41 @@ function drawDefender(highlight = false) {
 // UI更新
 function updateUI() {
     const isSniper = isMyTurn();
-    document.getElementById('defender-controls').style.display = (!isSniper && STATE.phase !== 'menu') ? 'block' : 'none';
     
-    document.getElementById('p1-info').innerText = isSniper ? `狙击手 (你) | 子弹: ${STATE.bullets}` : `伪装者 (你)`;
-    document.getElementById('p2-info').innerText = isSniper ? "目标: 伪装者" : "威胁: 狙击手";
+    // 控制显示逻辑
+    const defenderUI = document.getElementById('defender-controls');
+    const moveUI = document.getElementById('move-controls');
+    const fireBtn = document.getElementById('fire-btn');
     
+    if(STATE.phase === 'menu') {
+        defenderUI.style.display = 'none';
+        moveUI.style.display = 'none';
+        fireBtn.style.display = 'none';
+    } else {
+        defenderUI.style.display = !isSniper ? 'block' : 'none';
+        moveUI.style.display = !isSniper ? 'flex' : 'none';
+        fireBtn.style.display = (isSniper && STATE.phase === 'aiming') ? 'flex' : 'none';
+    }
+    
+    // HP显示
+    const p1Hp = STATE.playerHP[STATE.netRole];
+    const p2Role = STATE.netRole === 'host' ? 'client' : 'host';
+    const p2Hp = STATE.playerHP[p2Role];
+    
+    document.getElementById('p1-info').innerText = isSniper ? `狙击手 (我) | 子弹: ${STATE.bullets}` : `伪装者 (我)`;
+    document.getElementById('p2-info').innerText = isSniper ? `目标` : `威胁`;
+    
+    // 血条
+    document.getElementById('p1-hp-bar').style.display = 'block';
+    document.getElementById('p2-hp-bar').style.display = 'block';
+    document.getElementById('p1-hp-fill').style.width = p1Hp + '%';
+    document.getElementById('p2-hp-fill').style.width = p2Hp + '%';
+    document.getElementById('p1-hp-fill').style.background = p1Hp > 30 ? '#4caf50' : '#e53935';
+    document.getElementById('p2-hp-fill').style.background = p2Hp > 30 ? '#4caf50' : '#e53935';
+
     let phaseText = "";
     if(STATE.phase === 'waiting') phaseText = "准备阶段";
     else if(STATE.phase === 'aiming') phaseText = "交战中";
-    else if(STATE.phase === 'menu') phaseText = "";
     document.getElementById('phase-info').innerText = phaseText;
     
     if(!isSniper) updatePoseButtons();
@@ -638,11 +765,7 @@ function updatePoseButtons() {
             btn.disabled = false;
         } else {
             btn.classList.remove('active');
-            if(now < STATE.cooldowns[pose]) {
-                btn.disabled = true;
-            } else {
-                btn.disabled = false;
-            }
+            btn.disabled = now < STATE.cooldowns[pose];
         }
     });
 }
