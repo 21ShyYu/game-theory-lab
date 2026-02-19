@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🏸 家庭羽毛球冠军赛</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #FF6B35;
+            --secondary: #004E89;
+            --accent: #1A936F;
+            --danger: #E63946;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+            --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            padding: 10px;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px 0;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .input-section h2 {
+            color: var(--secondary);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .player-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .player-input {
+            position: relative;
+        }
+
+        .player-input input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .player-input input:focus {
+            outline: none;
+            border-color: var(--primary);
+            transform: scale(1.02);
+        }
+
+        .player-input:nth-child(7) {
+            grid-column: 1 / -1;
+            max-width: 50%;
+            margin: 0 auto;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #ff8c42 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .tournament-section {
+            display: none;
+        }
+
+        .phase-title {
+            background: linear-gradient(135deg, var(--secondary) 0%, #0066cc 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 78, 137, 0.3);
+        }
+
+        .bracket {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .round-section {
+            background: rgba(255,255,255,0.7);
+            border-radius: 15px;
+            padding: 15px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .round-title {
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .match {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .match::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary);
+        }
+
+        .match.lucky::before {
+            background: var(--gold);
+        }
+
+        .match.elimination::before {
+            background: var(--danger);
+        }
+
+        .match.final::before {
+            background: linear-gradient(to bottom, var(--gold), var(--secondary));
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .player.winner {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid var(--accent);
+            font-weight: bold;
+        }
+
+        .player.loser {
+            background: #f8f9fa;
+            opacity: 0.7;
+        }
+
+        .player.lucky {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+            border: 2px solid var(--gold);
+            animation: luckyPulse 2s infinite;
+        }
+
+        @keyframes luckyPulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .player-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: var(--secondary);
+            color: white;
+            font-weight: bold;
+        }
+
+        .player-badge.lucky {
+            background: var(--gold);
+            color: #333;
+        }
+
+        .vs-divider {
+            text-align: center;
+            color: #999;
+            font-size: 0.8rem;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .vs-divider::before,
+        .vs-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 30%;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .vs-divider::before { left: 5%; }
+        .vs-divider::after { right: 5%; }
+
+        .match-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-win {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-win:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-win:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-win.selected {
+            background: var(--accent);
+            color: white;
+        }
+
+        .zone-label {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .zone-winners {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .zone-losers {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .champion-display {
+            background: linear-gradient(135deg, var(--gold) 0%, #ffed4e 100%);
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
+            animation: championGlow 2s infinite;
+        }
+
+        @keyframes championGlow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .champion-display h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .champion-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--secondary);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .ranking-list {
+            margin-top: 15px;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .rank-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank-medal {
+            font-size: 1.5rem;
+            margin-right: 10px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .rank-info {
+            flex: 1;
+        }
+
+        .rank-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .rank-title {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .draw-animation {
+            animation: drawShake 0.5s ease;
+        }
+
+        @keyframes drawShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .waiting {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .arrow-down {
+            text-align: center;
+            color: var(--secondary);
+            font-size: 1.5rem;
+            margin: 5px 0;
+            opacity: 0.5;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                max-width: 800px;
+            }
+            
+            header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .player-inputs {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .player-input:nth-child(7) {
+                grid-column: 2;
+                max-width: 100%;
+            }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: var(--gold);
+            position: absolute;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏸 家庭羽毛球冠军赛</h1>
+            <p>7人双败淘汰制 · 激烈对决</p>
+        </header>
+
+        <!-- 输入阶段 -->
+        <div class="card input-section" id="inputSection">
+            <h2>👥 输入参赛选手（7人）</h2>
+            <div class="player-inputs" id="playerInputs">
+                <div class="player-input">
+                    <input type="text" placeholder="选手1" id="p1" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手2" id="p2" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手3" id="p3" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手4" id="p4" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手5" id="p5" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手6" id="p6" maxlength="8">
+                </div>
+                <div class="player-input">
+                    <input type="text" placeholder="选手7" id="p7" maxlength="8">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="startDraw()">
+                🎲 开始抽签对战
+            </button>
+        </div>
+
+        <!-- 比赛阶段 -->
+        <div class="tournament-section" id="tournamentSection">
+            <!-- 动态生成内容 -->
+        </div>
+    </div>
+
+   <script>
+        let players = [];
+        let matches = {};
+        let currentPhase = 0;
+        let luckyWinners = [];
+        let luckyLosers = [];
+
+        function startDraw() {
+            // 收集选手
+            players = [];
+            for (let i = 1; i <= 7; i++) {
+                const name = document.getElementById(`p${i}`).value.trim();
+                if (!name) {
+                    alert(`请填写选手${i}的姓名`);
+                    return;
+                }
+                players.push({ id: i, name: name, wins: 0, losses: 0, eliminated: false });
+            }
+
+            // 随机打乱
+            const shuffled = [...players].sort(() => Math.random() - 0.5);
+            
+            // 抽取天选之人（轮空）
+            const lucky = shuffled.pop();
+            luckyWinners.push(lucky);
+            
+            // 创建第一轮对阵（3场比赛）
+            matches.round1 = [];
+            for (let i = 0; i < 3; i++) {
+                matches.round1.push({
+                    id: i,
+                    player1: shuffled[i * 2],
+                    player2: shuffled[i * 2 + 1],
+                    winner: null,
+                    loser: null
+                });
+            }
+
+            // 修复点：移除了多余的点，修正了语法错误
+            document.getElementById('inputSection').classList.add('hidden');
+            document.getElementById('tournamentSection').style.display = 'block';
+            
+            renderTournament();
+        }
+
+        function renderTournament() {
+            const container = document.getElementById('tournamentSection');
+            let html = '';
+
+            // 第一轮
+            html += '<div class="phase-title">🎲 第一轮抽签对战</div>';
+            html += '<div class="card bracket">';
+            
+            // 天选之人
+            html += `
+                <div class="round-section">
+                    <div class="round-title">✨ 天选之人（直接晋级）</div>
+                    <div class="match lucky">
+                        <div class="player lucky">
+                            <span class="player-name">${luckyWinners[0].name}</span>
+                            <span class="player-badge lucky">天选</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 第一轮比赛
+            html += '<div class="round-section">';
+            html += '<div class="round-title">⚔️ 首轮对阵（点击选择胜者）</div>';
+            matches.round1.forEach((match, idx) => {
+                html += renderMatch(match, 'round1', idx);
+            });
+            html += '</div>';
+            html += '</div>';
+
+            // 胜者组第二轮（如果有结果）
+            if (matches.round2Winners) {
+                html += '<div class="arrow-down">⬇️</div>';
+                html += '<div class="phase-title">🏆 胜者组</div>';
+                html += '<div class="card bracket">';
+                
+                html += '<div class="round-section">';
+                html += '<div class="round-title">第二轮（4进2）</div>';
+                matches.round2Winners.forEach((match, idx) => {
+                    html += renderMatch(match, 'round2Winners', idx);
+                });
+                html += '</div>';
+
+                // 胜者组第三轮（半决赛）
+                if (matches.round3Winners) {
+                    html += '<div class="arrow-down">⬇️</div>';
+                    html += '<div class="round-section">';
+                    // 修改文案：因为是双败制，败者其实还有机会去败者组争夺决赛权
+                    html += '<div class="round-title">第三轮（半决赛 - 胜者进决赛，败者去复活赛）</div>';
+                    matches.round3Winners.forEach((match, idx) => {
+                        html += renderMatch(match, 'round3Winners', idx, true);
+                    });
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+
+            // 败者组（如果有败者）
+            if (matches.round1.some(m => m.loser)) {
+                html += '<div class="arrow-down">⬇️</div>';
+                html += '<div class="phase-title">🔄 败者组（复活赛）</div>';
+                html += '<div class="card bracket">';
+
+                // 败者组第一轮：抽天选 + 2人对战
+                if (matches.losersRound1) {
+                    html += '<div class="round-section">';
+                    html += '<div class="round-title">败者组第一轮（3人→2人）</div>';
+                    
+                    // 显示天选
+                    if (luckyLosers.length > 0) {
+                        html += `
+                            <div class="match lucky" style="margin-bottom: 10px;">
+                                <div class="player lucky">
+                                    <span class="player-name">${luckyLosers[0].name}</span>
+                                    <span class="player-badge lucky">败者组天选</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // 显示比赛
+                    if (matches.losersRound1.match) {
+                        html += renderMatch(matches.losersRound1.match, 'losersRound1', 0);
+                    }
+                    html += '</div>';
+                }
+
+                // 败者组第二轮：胜者vs天选
+                if (matches.losersRound2) {
+                    html += '<div class="arrow-down">⬇️</div>';
+                    html += '<div class="round-section">';
+                    html += '<div class="round-title">败者组第二轮（2进1）</div>';
+                    html += renderMatch(matches.losersRound2, 'losersRound2', 0);
+                    html += '</div>';
+                }
+
+                // 败者组第三轮：vs胜者组第二轮败者
+                if (matches.losersRound3) {
+                    html += '<div class="arrow-down">⬇️</div>';
+                    html += '<div class="round-section">';
+                    html += '<div class="round-title">败者组第三轮（vs胜者组败者）</div>';
+                    html += renderMatch(matches.losersRound3, 'losersRound3', 0);
+                    html += '</div>';
+                }
+
+                // 败者组第四轮：vs胜者组半决赛败者
+                if (matches.losersRound4) {
+                    html += '<div class="arrow-down">⬇️</div>';
+                    html += '<div class="round-section">';
+                    html += '<div class="round-title">败者组决赛（争夺总决赛门票）</div>';
+                    html += renderMatch(matches.losersRound4, 'losersRound4', 0);
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            // 总决赛
+            if (matches.final) {
+                html += '<div class="arrow-down">⬇️</div>';
+                html += '<div class="phase-title">👑 总决赛</div>';
+                html += '<div class="card">';
+                html += renderMatch(matches.final, 'final', 0, false, true);
+                html += '</div>';
+            }
+
+            // 最终结果
+            if (matches.completed) {
+                html += renderFinalResult();
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderMatch(match, round, idx, isSemiFinal = false, isFinal = false) {
+            const p1Class = match.winner === match.player1 ? 'winner' : (match.winner ? 'loser' : '');
+            const p2Class = match.winner === match.player2 ? 'winner' : (match.winner ? 'loser' : '');
+            const finished = match.winner !== null;
+            
+            let html = `<div class="match ${isFinal ? 'final' : ''} ${match.isLucky ? 'lucky' : ''} ${match.isElimination ? 'elimination' : ''}">`;
+            
+            if (isFinal) {
+                html += '<div style="background: var(--gold); color: #333; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 8px; text-align: center; font-weight: bold;">🏆 冠军争夺战</div>';
+            }
+            
+            html += `
+                <div class="player ${p1Class}">
+                    <span class="player-name">${match.player1.name}</span>
+                    ${match.winner === match.player1 ? '<span style="color: var(--accent);">✓</span>' : ''}
+                </div>
+            `;
+            
+            if (!finished) {
+                html += '<div class="vs-divider">VS</div>';
+            } else {
+                html += '<div class="vs-divider">—</div>';
+            }
+            
+            html += `
+                <div class="player ${p2Class}">
+                    <span class="player-name">${match.player2.name}</span>
+                    ${match.winner === match.player2 ? '<span style="color: var(--accent);">✓</span>' : ''}
+                </div>
+            `;
+            
+            if (!finished) {
+                html += `
+                    <div class="match-actions">
+                        <button class="btn-win" onclick="setWinner('${round}', ${idx}, 1)" id="${round}_${idx}_1">
+                            ${match.player1.name} 胜
+                        </button>
+                        <button class="btn-win" onclick="setWinner('${round}', ${idx}, 2)" id="${round}_${idx}_2">
+                            ${match.player2.name} 胜
+                        </button>
+                    </div>
+                `;
+            } else if (match.loser && match.isElimination) {
+                html += `<div style="text-align: center; color: var(--danger); font-size: 0.85rem; margin-top: 5px;">❌ ${match.loser.name} 被淘汰</div>`;
+            } else if (isSemiFinal && match.loser) {
+                html += `<div style="text-align: center; color: var(--secondary); font-size: 0.85rem; margin-top: 5px; font-weight: bold;">⬇️ ${match.loser.name} 进入败者组</div>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function setWinner(round, idx, playerNum) {
+            let match;
+            if (round === 'losersRound1') {
+                match = matches.losersRound1.match;
+            } else if (Array.isArray(matches[round])) {
+                match = matches[round][idx];
+            } else {
+                match = matches[round];
+            }
+
+            if (match.winner) return; // 已结束
+            
+            if (playerNum === 1) {
+                match.winner = match.player1;
+                match.loser = match.player2;
+            } else {
+                match.winner = match.player2;
+                match.loser = match.player1;
+            }
+            
+            // 立即给按钮添加样式，虽然页面会刷新，但能提供即时反馈
+            const btn1 = document.getElementById(`${round}_${idx}_1`);
+            const btn2 = document.getElementById(`${round}_${idx}_2`);
+            if (btn1 && btn2) {
+                btn1.disabled = true;
+                btn2.disabled = true;
+                if(playerNum === 1) btn1.classList.add('selected');
+                else btn2.classList.add('selected');
+            }
+            
+            // 检查是否可以进入下一轮
+            checkProgression();
+        }
+
+        function checkProgression() {
+            // 1. 检查第一轮是否全部完成 -> 触发第二轮和败者组第一轮
+            if (matches.round1.every(m => m.winner !== null) && !matches.round2Winners) {
+                const winners = matches.round1.map(m => m.winner);
+                winners.push(luckyWinners[0]); // 加入天选之人
+                
+                // 随机打乱胜者组第二轮
+                const shuffled = winners.sort(() => Math.random() - 0.5);
+                matches.round2Winners = [
+                    { player1: shuffled[0], player2: shuffled[1], winner: null, loser: null },
+                    { player1: shuffled[2], player2: shuffled[3], winner: null, loser: null }
+                ];
+                
+                // 准备败者组第一轮
+                const losers = matches.round1.map(m => m.loser);
+                // 3个败者：1个天选，2个对打
+                const loserShuffled = [...losers].sort(() => Math.random() - 0.5);
+                luckyLosers.push(loserShuffled.pop()); // 败者组天选
+                
+                matches.losersRound1 = {
+                    lucky: luckyLosers[0],
+                    match: {
+                        player1: loserShuffled[0],
+                        player2: loserShuffled[1],
+                        winner: null,
+                        loser: null,
+                        isElimination: true // 输的淘汰
+                    }
+                };
+            }
+            
+            // 2. 检查胜者组第二轮 -> 触发胜者组半决赛
+            if (matches.round2Winners && matches.round2Winners.every(m => m.winner !== null) && !matches.round3Winners) {
+                const winners = matches.round2Winners.map(m => m.winner);
+                const losersFromWinners = matches.round2Winners.map(m => m.loser);
+                
+                matches.round3Winners = [{
+                    player1: winners[0],
+                    player2: winners[1],
+                    winner: null,
+                    loser: null
+                }];
+                
+                // 保存胜者组第二轮淘汰下来的人
+                matches.winnersRound2Losers = losersFromWinners;
+            }
+
+            // 3. 检查败者组第一轮 -> 触发败者组第二轮
+            if (matches.losersRound1 && matches.losersRound1.match.winner && !matches.losersRound2) {
+                matches.losersRound2 = {
+                    player1: matches.losersRound1.match.winner,
+                    player2: luckyLosers[0], // 打败者组天选
+                    winner: null,
+                    loser: null,
+                    isElimination: true
+                };
+            }
+            
+            // 4. 检查败者组第二轮 -> 触发败者组第三轮 (需要等胜者组第二轮打完)
+            if (matches.losersRound2 && matches.losersRound2.winner && matches.winnersRound2Losers && !matches.losersRound3) {
+                // 规则：败者组第二轮胜者 vs 胜者组第二轮掉下来的2人之一
+                // 为了简化7人赛制，这里安排对战其中一人。注：另一人在此简化赛制中比较尴尬，
+                // 通常正规赛制会交叉对战，这里为了家庭娱乐简化流程，我们让它对战随机一个。
+                matches.losersRound3 = {
+                    player1: matches.losersRound2.winner,
+                    player2: matches.winnersRound2Losers[0], // 随机取一个掉下来的
+                    winner: null,
+                    loser: null,
+                    isElimination: true
+                };
+                // 注：winnersRound2Losers[1] 在此简化赛制中直接被淘汰，或者您可以理解为排位较低
+            }
+            
+            // 5. 检查败者组第三轮 + 胜者组半决赛 -> 触发败者组第四轮 (败者决赛)
+            // 这个逻辑很关键：必须两个前置条件都满足（有人从胜者组半决赛掉下来，且败者组第三轮打完了）
+            if (matches.losersRound3 && matches.losersRound3.winner && 
+                matches.round3Winners && matches.round3Winners[0].loser && 
+                !matches.losersRound4) {
+                
+                matches.losersRound4 = {
+                    player1: matches.losersRound3.winner,
+                    player2: matches.round3Winners[0].loser, // 胜者组半决赛的败者
+                    winner: null,
+                    loser: null,
+                    isElimination: true // 输了就是季军
+                };
+            }
+            
+            // 6. 检查败者组第四轮 + 胜者组半决赛胜者 -> 触发总决赛
+            if (matches.losersRound4 && matches.losersRound4.winner && 
+                matches.round3Winners && matches.round3Winners[0].winner && 
+                !matches.final) {
+                
+                matches.final = {
+                    player1: matches.round3Winners[0].winner, // 胜者组冠军
+                    player2: matches.losersRound4.winner,     // 败者组冠军
+                    winner: null,
+                    loser: null
+                };
+            }
+            
+            // 7. 检查总决赛 -> 结束
+            if (matches.final && matches.final.winner && !matches.completed) {
+                matches.completed = true;
+                createConfetti();
+            }
+            
+            // 稍微延迟渲染，让数据状态更新完毕
+            setTimeout(() => renderTournament(), 200);
+        }
+
+        function renderFinalResult() {
+            const champion = matches.final.winner;
+            const second = matches.final.loser;
+            const third = matches.losersRound4.loser; // 败者组决赛输的人是季军
+            
+            return `
+                <div class="champion-display">
+                    <h3>🏆 比赛结束 🏆</h3>
+                    <div class="champion-name">${champion.name}</div>
+                    <p style="margin-top: 10px; font-weight: bold;">荣获家庭羽毛球总冠军！</p>
+                </div>
+                <div class="ranking-list">
+                    <div class="rank-item">
+                        <div class="rank-medal">🥇</div>
+                        <div class="rank-info">
+                            <div class="rank-name">${champion.name}</div>
+                            <div class="rank-title">冠军</div>
+                        </div>
+                    </div>
+                    <div class="rank-item">
+                        <div class="rank-medal">🥈</div>
+                        <div class="rank-info">
+                            <div class="rank-name">${second.name}</div>
+                            <div class="rank-title">亚军</div>
+                        </div>
+                    </div>
+                    <div class="rank-item">
+                        <div class="rank-medal">🥉</div>
+                        <div class="rank-info">
+                            <div class="rank-name">${third.name}</div>
+                            <div class="rank-title">季军</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">
+                    🔄 重新开始比赛
+                </button>
+            `;
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = ['#FFD700', '#FF6B35', '#1A936F', '#004E89'][Math.floor(Math.random() * 4)];
+                    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 4000);
+                }, i * 50);
+            }
+        }
+
+        // 初始化
+        // renderTournament(); // 不需要一开始就调用，等开始后再显示
+    </script>
+</body>
+</html>
